@@ -9,6 +9,7 @@ import (
 	"log"
 	t "lyods-adsTool/entity"
 	"net/http"
+	"regexp"
 )
 
 func main() {
@@ -20,11 +21,12 @@ func main() {
 	//	fmt.Println(v)
 	//}
 	//fmt.Println(len(list))
-	getAddrListByXml("https://www.treasury.gov/ofac/downloads/sdn.xml", `/sdnList/sdnEntry/idList/id[idType='Digital Currency Address - XBT']/idNumber`)
+	// getAddrListOnXml("https://www.treasury.gov/ofac/downloads/sdn.xml", `/sdnList/sdnEntry/idList/id[idType='Digital Currency Address - XBT']/idNumber`)
+	getAddrListOnXmlByElement("https://www.treasury.gov/ofac/downloads/sdn.xml")
 }
 
 // 根据url获取json格式的地址名单-获取address & chain
-func getAddrListByJSON(url string, level int, fields []string, road ...string) []t.WalletAddr {
+func getAddrListOnJSON(url string, level int, fields []string, road ...string) []t.WalletAddr {
 	var err error
 	//风险地址名单
 	var addrList []t.WalletAddr
@@ -61,7 +63,7 @@ func getAddrListByJSON(url string, level int, fields []string, road ...string) [
 }
 
 // 根据url获得csv格式的地址名单-批量获取address
-func getAddrListByCsv(url, chain string, level, index int) []t.WalletAddr {
+func getAddrListOnCsv(url, chain string, level, index int) []t.WalletAddr {
 	var err error
 	//风险地址名单
 	var addrList []t.WalletAddr
@@ -98,18 +100,71 @@ func getAddrListByCsv(url, chain string, level, index int) []t.WalletAddr {
 	return addrList
 }
 
-// 根据url获取xml格式的地址名单
-func getAddrListByXml(url, searchPath string) {
+// 根据url获取xml格式的地址名单-根据指定的路径查询
+func getAddrListOnXmlByPath(url, chain, searchPath string, level int) {
+	var err error
+	//用于去除重复数据
+	temp := map[string]struct{}{}
+	//风险地址名单
+	var addrList []t.WalletAddr
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Println("http status is :", resp.StatusCode, err.Error())
+	}
+	defer resp.Body.Close()
+	//将文件读取至etree文档
+	doc := etree.NewDocument()
+	if i, err := doc.ReadFrom(resp.Body); err != nil || i <= 0 {
+		log.Fatal("error:", err, "or read file is nil")
+	}
+	//根据指定路径查询
+	for _, e := range doc.FindElements(searchPath) {
+		//将不重复数据存入到addrList中
+		if _, ok := temp[e.Text()]; !ok {
+			temp[e.Text()] = struct{}{}
+			addrList = append(addrList, t.WalletAddr{WaAddr: e.Text(), WaRiskLevel: level, WaChain: chain})
+		}
+		fmt.Println(e.Text())
+	}
+}
+
+// 根据url获取xml格式的地址名单-根据访问元素
+func getAddrListOnXmlByElement(url string) {
 	var err error
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Println("http status is :", resp.StatusCode, err.Error())
 	}
+	//将文件读取至etree文档
 	doc := etree.NewDocument()
 	if i, err := doc.ReadFrom(resp.Body); err != nil || i <= 0 {
 		log.Fatal("error:", err, "or read file is nil")
 	}
-	for _, e := range doc.FindElements(searchPath) {
-		fmt.Println(e.Text())
+	defer resp.Body.Close()
+	//访问根元素
+	root := doc.SelectElement("sdnList")
+	//访问元素 sdnList->sdnEntry->idList->id->idType
+	for _, sdnEntry := range root.SelectElements("sdnEntry") {
+		if idList := sdnEntry.SelectElement("idList"); idList != nil {
+			for _, id := range idList.SelectElements("id") {
+				idType := id.SelectElement("idType").Text()
+				//匹配字符串
+				isCurrency, err := regexp.MatchString(`^Digital Currency Address - `, idType)
+				if err != nil {
+					log.Fatal(err.Error())
+				}
+				//数据匹配成功，截取数据：所在链，以及地址
+				if isCurrency {
+					flysnowRegexp, err := regexp.Compile(`^Digital Currency Address - ([\D]{3,16}$)`)
+					if err != nil {
+						log.Fatal(err.Error())
+					}
+					params := flysnowRegexp.FindStringSubmatch(idType)
+
+					address := id.SelectElement("idNumber").Text()
+					fmt.Printf("%v \t %s \n", params[len(params)-1], address)
+				}
+			}
+		}
 	}
 }
