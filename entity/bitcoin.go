@@ -25,14 +25,14 @@ type TxsBtc struct {
 	LockTime    uint        `json:"lock_time"`    //锁定时间
 	TxIndex     big.Int     `json:"tx_index"`     //交易索引
 	DoubleSpend bool        `json:"double_spend"` //是否双花
-	Time        big.Int     `json:"time"`         //当前交易发生时间
+	Time        uint        `json:"time"`         //当前交易发生时间
 	BlockIndex  uint        `json:"block_index"`  //区块索引
 	BlockHeight uint        `json:"block_height"` //区块高度
 	Inputs      []InputsBtc `json:"inputs"`       //交易输入
 	Out         []OutBtc    `json:"out"`          //交易输出
 }
 type InputsBtc struct {
-	Sequence big.Int    `json:"sequence"` //发送者定义的交易版本号
+	Sequence uint       `json:"sequence"` //发送者定义的交易版本号
 	Witness  string     `json:"witness"`  //交易输入内容
 	Script   string     `json:"script"`   //前序交易输出的目标公钥脚本
 	Index    uint       `json:"index"`    //所处交易索引值
