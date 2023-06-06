@@ -9,13 +9,14 @@ func main() {
 	//解析数据来源参数：目前支持格式：json、csv、xml
 	//getDataSourceByJSON("https://api.ransomwhe.re/export")
 	// getDataSourceByCsv("https://gist.githubusercontent.com/banteg/1657d4778eb86c460e03bc58b99970c0/raw/2b8e0b2c1074b995b992397f34ab2843cf6bdf72/uniswap-trm.csv", "ETH", 1)
-	//list := getAddrListByJSON("http://api.ransomwhe.re/export", 1, []string{"address", "blockchain"}, "result")
-	//for _, v := range list {
-	//	fmt.Println(v)
-	//}
+	list, _ := tool.GetAddrListOnJSON("http://api.ransomwhe.re/export", 1, []string{"address", "blockchain"}, "result")
+	for _, v := range list {
+		fmt.Println(v)
+	}
 	//fmt.Println(len(list))
 	// getAddrListOnXml("https://www.treasury.gov/ofac/downloads/sdn.xml", `/sdnList/sdnEntry/idList/id[idType='Digital Currency Address - XBT']/idNumber`)
-	//list := tool.GetAddrListOnXmlByElement("https://www.treasury.gov/ofac/downloads/sdn.xml", `^Digital Currency Address - ([\D]{3,16}$)`, 1)
+	//list, _ := tool.GetAddrListOnXmlByElement("https://www.treasury.gov/ofac/downloads/sdn.xml", `^Digital Currency Address - ([\D]{3,16}$)`, 1)
+	//println(list)
 	//temp := map[string]struct{}{}
 	//var tickers []string
 	//for _, v := range list {
@@ -53,17 +54,42 @@ func main() {
 	//if err != nil {
 	//	fmt.Println("Error:", err.Error())
 	//}
-	list := []string{"17TMc2UkVRSga2yYvuxSD9Q1XyB2EPRjTF"}
-	aaa := tool.GetSublistByLevel(3, list)
-	for i, v := range aaa {
-		fmt.Printf("第%d层地址\n", i)
-		for _, v2 := range v {
-			fmt.Printf("%s \t", v2)
-		}
-		fmt.Println()
-	}
+	//list := []string{"17TMc2UkVRSga2yYvuxSD9Q1XyB2EPRjTF"}
+	//aaa := tool.GetSublistByLevel(3, list)
+	//for i, v := range aaa {
+	//	fmt.Printf("第%d层地址\n", i)
+	//	for _, v2 := range v {
+	//		fmt.Printf("%s \t", v2)
+	//	}
+	//	fmt.Println()
+	//}
 	//list, _ := tool.GetAssocAddr("17TMc2UkVRSga2yYvuxSD9Q1XyB2EPRjTF")
 	//for _, v := range list {
 	//	fmt.Println(v)
 	//}
+	//es, err := elasticsearch.NewDefaultClient()
+	//if err != nil {
+	//	log.Fatalf("获得客户端错误：%s", err)
+	//}
+	//CreateIndex(es, "golang")
+	//GetIndex(es, "golang")
+	//DeleteIndex(es, "golang")
 }
+
+// CreateIndex 创建索引
+//func CreateIndex(client *elasticsearch.Client, name string) {
+//	r, _ := client.API.Indices.Create(name)
+//	fmt.Printf("r:%v\n", r)
+//}
+//
+//// GetIndex 查询索引
+//func GetIndex(client *elasticsearch.Client, name string) {
+//	r, _ := client.API.Indices.Get([]string{name})
+//	fmt.Printf("r:%v\n", r)
+//}
+//
+//// DeleteIndex 删除索引
+//func DeleteIndex(client *elasticsearch.Client, name string) {
+//	r, _ := client.API.Indices.Delete([]string{name})
+//	fmt.Printf("r:%v\n", r)
+//}

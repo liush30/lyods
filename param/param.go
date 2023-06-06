@@ -12,9 +12,15 @@ const (
 	ETH_USDC   = `0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48` //以太坊中的USDC合约地址
 )
 const (
-	CHAIN_DASH = iota
-	CHAIN_BITGOLD
-	CHAIN_BNB
-	CHAIN_ETHEREUM
-	CHAIN_ARBITRUM
+	CHAIN_DASH     = iota //所在链-DASH
+	CHAIN_BITGOLD         //所在链-BITGOLD
+	CHAIN_BNB             //所在链-BNB
+	CHAIN_ETHEREUM        //所在链-ETHEREUM
+	CHAIN_ARBITRUM        //所在链-ARBITRUM
+)
+const (
+	DS_TYPE_URL = "1" //来源类型-url
+)
+const (
+	INIT_NUMBER = 0 //初始标记次数
 )

@@ -3,6 +3,7 @@ package tool
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"github.com/beevik/etree"
 	"github.com/buger/jsonparser"
 	"io"
@@ -14,10 +15,14 @@ import (
 )
 
 // GetAddrListOnJSON 根据url获取json格式的地址名单-获取address & chain
-func GetAddrListOnJSON(url string, level uint, fields []string, road ...string) ([]entity.WalletAddr, error) {
+func GetAddrListOnJSON(url, chain string, level uint, fields []string, road ...string) ([]string, error) {
+	//fmt.Printf("*************************clinet:%v\n", MClient)
 	var err error
+	//用于去除重复数据
+	temp := map[string]struct{}{}
 	//风险地址名单
-	var addrList []entity.WalletAddr
+	//var addrList []entity.WalletAddr
+	var addrListStr []string
 	//创建http请求
 	req, err := http.NewRequest(param.HTTP_GET, url, nil)
 	if err != nil {
@@ -27,7 +32,7 @@ func GetAddrListOnJSON(url string, level uint, fields []string, road ...string) 
 	//发送http请求
 	resp, err := MClient.Do(req)
 	if err != nil || resp.StatusCode != http.StatusOK {
-		log.Println("http status is :", resp.StatusCode, "Do Error:", err.Error())
+		log.Println("Do Error:", err.Error())
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -42,18 +47,36 @@ func GetAddrListOnJSON(url string, level uint, fields []string, road ...string) 
 		if err != nil {
 			log.Fatal(err)
 		}
-		chain, _, _, err := jsonparser.Get(value, fields[1])
+		ticker, _, _, err := jsonparser.Get(value, fields[1])
 		if err != nil {
 			log.Fatal(err)
 		}
-		//将获取到的信息存储到addrList
-		addrList = append(addrList, entity.WalletAddr{
-			WaAddr:      string(address),
-			WaRiskLevel: level,
-			WaTicker:    string(chain),
-		})
+		//将不重复数据存入到addrList中
+		if _, ok := temp[string(address)]; !ok {
+			//将获取到的信息存储到addrList
+			walletAddr := entity.WalletAddr{
+				WaAddr:      string(address),
+				WaRiskLevel: level,
+				WaTicker:    string(ticker),
+				WaChain:     chain,
+				DsAddr: []entity.AdsDataSource{
+					{
+						DsAddr: url,
+						DsType: param.DS_TYPE_URL,
+						Number: param.INIT_NUMBER,
+					},
+				},
+			}
+			addrByter, err := json.Marshal(walletAddr)
+			if err != nil {
+				log.Println("json marshal error:", err)
+			}
+			addrListStr = append(addrListStr, string(addrByter))
+		}
+
 	}, road...)
-	return addrList, nil
+	return addrListStr, nil
+
 }
 
 // GetAddrListOnCsv 根据url获得csv格式的地址名单-批量获取address
