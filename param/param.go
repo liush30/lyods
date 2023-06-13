@@ -24,3 +24,6 @@ const (
 const (
 	INIT_NUMBER = 0 //初始标记次数
 )
+const (
+	WA_ADDR_INDEX = "addr_list"
+)

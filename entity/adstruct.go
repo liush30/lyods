@@ -4,7 +4,7 @@ package entity
 //	type AdsDataSource struct {
 //		DsName  string `json:"ds_name"`  //来源名称
 //		DsAddr  string `json:"ds_addr"`  //来源地址
-//		DsLevel uint   `json:"ds_level"` //监控层次
+//		DsLevel uint   `json:"ds_level"` //监控层
 //	}
 type AdsDataSource struct {
 	DsAddr string `json:"dsAddr"` //来源地址
