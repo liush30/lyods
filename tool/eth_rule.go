@@ -1,0 +1,5 @@
+package tool
+
+func InternalTrans() {
+
+}

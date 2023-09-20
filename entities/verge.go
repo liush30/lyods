@@ -1,5 +1,5 @@
-// Package entity XVG交易信息
-package entity
+// Package entities XVG交易信息
+package entities
 
 import (
 	"math/big"

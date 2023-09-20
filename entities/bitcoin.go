@@ -1,5 +1,5 @@
-// Package entity bitcoin交易信息结构
-package entity
+// Package entities bitcoin交易信息结构
+package entities
 
 import "math/big"
 

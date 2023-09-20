@@ -1,10 +1,5 @@
 package main
 
-import (
-	"fmt"
-	"lyods-adsTool/tool"
-)
-
 func main() {
 	//// 创建ES client用于后续操作ES
 	//client, err := elastic.NewClient(
@@ -57,11 +52,6 @@ func main() {
 	//	fmt.Printf("GetWalletAddr =========Error=========:\v\n", err.Error())
 	//}
 	//fmt.Println(bol)
-	count, err := tool.GetIndexDocNum("addr_list")
-	if err != nil {
-		fmt.Printf(err.Error())
-	}
-	fmt.Println(count)
 	//dsAddr := entity.AdsDataSource{
 	//	DsAddr: "888888.test0000.com",
 	//	DsType: "2",
@@ -71,10 +61,48 @@ func main() {
 	//if err != nil {
 	//	fmt.Printf("UpdateDsAddrSource =========Error=========:\v\n", err.Error())
 	//}
-	//err, waAddr := tool.GetWalletAddr("addr_list", "13echkfV54pw7fxN1gkQmg5yV8FC4xx16T")
+	//err, waAddr := tool.GetWalletAddrByte("addr_list", "0xooooooo88888888")
 	//if err != nil {
 	//	fmt.Printf("GetWalletAddr =========Error=========:\v\n", err.Error())
 	//}
-	//fmt.Println(waAddr)
-	//tool.GetAddrListOnJSON("http://api.ransomwhe.re/export", 1, []string{"address", "blockchain"}, "result")
+	//fmt.Println(string(waAddr))
+	//isTrue, err := tool.IsExitsAddrSource("0xooooooo88888888", "888888.test0000.com")
+	//if err != nil {
+	//	fmt.Println("报错啦")
+	//}
+	//fmt.Println(isTrue)
+	//==========================获取该地址来源的bitcoin链上的风险名单信息以及交易信息并往下追查三层
+	//err := tool.GetAddrListByJSONOnBitcoin("http://api.ransomwhe.re/export", 1, []string{"address", "blockchain"}, "result")
+	//if err != nil {
+	//	fmt.Println("报错啦！")
+	//}
+	//str, err := tool.GetSublistByAddr("17TMc2UkVRSga2yYvuxSD9Q1XyB2EPRjTF")
+	//if err != nil {
+	//	fmt.Println("报错啦")
+	//}
+	//fmt.Println(len(str))
+	//==========删除索引
+	//tool.DeleteIndexByName(param.ADDRESS_TRANS_LIST)
+	//tool.DeleteIndexByName(param.WA_ADDR_INDEX)
+	//创建addrList索引-风险名单
+	//tool.CreateIndex(param.WA_ADDR_INDEX, param.ADDR_MAPPING)
+	//创建transList索引-交易信息
+	//tool.CreateIndex(param.ADDRESS_TRANS_LIST, param.TRANS_MAPPING)
+	//=======================================================
+	//err := tool.AddTransAndSourceByAddr("17TMc2UkVRSga2yYvuxSD9Q1XyB2EPRjTF", 3)
+	//if err != nil {
+	//	fmt.Println("报错啦")
+	//}
+	//查询tran_list文档总数
+	//count, err := tool.GetIndexDocNum(param.ADDRESS_TRANS_LIST)
+	//if err != nil {
+	//	fmt.Printf(err.Error())
+	//}
+	//fmt.Println(count)
+	//err := tool.GetAddrListOnCsv("https://gist.githubusercontent.com/banteg/1657d4778eb86c460e03bc58b99970c0/raw/2b8e0b2c1074b995b992397f34ab2843cf6bdf72/uniswap-trm.csv", "ETH", 0, 3)
+	//if err != nil {
+	//	fmt.Println("报错啦")
+	//}
+	//list := tool.GetChainOnXmlByElement("https://www.treasury.gov/ofac/downloads/sdn.xml", `^Digital Currency Address - ([\D]{3,16}$)`, 1)
+	//log.Println(list)
 }

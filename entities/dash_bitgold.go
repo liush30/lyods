@@ -1,5 +1,5 @@
-// Package entity Dash、Bitcoin Gold交易信息结构
-package entity
+// Package entities Dash、Bitcoin Gold交易信息结构
+package entities
 
 import "math/big"
 

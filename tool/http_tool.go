@@ -2,7 +2,7 @@ package tool
 
 import (
 	"log"
-	"lyods-adsTool/param"
+	"lyods-adsTool/config"
 	"net/http"
 	"net/url"
 )
@@ -16,9 +16,9 @@ func init() {
 // 获取client对象
 func createClient() *http.Client {
 	//创建代理URL
-	proxyURL, err := url.Parse(param.URL_PROXY)
+	proxyURL, err := url.Parse(config.URL_PROXY)
 	if err != nil {
-		log.Println("Error parsing proxy URL: ", err)
+		log.Fatal("Error parsing proxy URL: ", err)
 		return nil
 	}
 	// 创建 HTTP Transport

@@ -1,5 +1,5 @@
-// Package entity ethereum,bnb,arbitrum交易信息结构
-package entity
+// Package entities ethereum,bnb,arbitrum交易信息结构
+package entities
 
 // TransactionEthOrBnb TransactionEth 普通交易信息集合
 type TransactionEthOrBnb struct {

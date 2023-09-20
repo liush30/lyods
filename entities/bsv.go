@@ -1,5 +1,5 @@
-// Package entity Bitcoin Satoshi Vision交易信息结构
-package entity
+// Package entities Bitcoin Satoshi Vision交易信息结构
+package entities
 
 type HistoryTransOnBsv struct {
 	TxHash string `json:"tx_hash"`
