@@ -3,12 +3,13 @@ package list
 
 import (
 	"encoding/csv"
+	"errors"
 	"github.com/beevik/etree"
 	"github.com/buger/jsonparser"
 	"github.com/google/uuid"
 	"io"
 	"log"
-	"lyods-adsTool/entities"
+	"lyods-adsTool/domain"
 	"lyods-adsTool/es"
 	"lyods-adsTool/pkg"
 	"lyods-adsTool/pkg/constants"
@@ -31,10 +32,12 @@ func GetAddrListByJSONOnBitcoin(url string) error {
 		return err
 	}
 	//发送http请求
-	resp, err := tool.MClient.Do(req)
-	if err != nil || resp.StatusCode != http.StatusOK {
+	resp, err := tool.CreateClient().Do(req)
+	if err != nil {
 		log.Println("Do Error:", err.Error())
 		return err
+	} else if resp.StatusCode != http.StatusOK {
+		return errors.New("status code is " + strconv.Itoa(resp.StatusCode))
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
@@ -47,65 +50,59 @@ func GetAddrListByJSONOnBitcoin(url string) error {
 		//获取风险地址
 		addrStr, err := jsonparser.GetString(value, "address")
 		if err != nil {
-			log.Println("Fail get address", err.Error())
+			log.Fatal("Fail get address", err.Error())
 		}
-		//获取地址
+		//获取所在链
 		chain, err := jsonparser.GetString(value, "blockchain")
 		if err != nil {
-			log.Println("Fail get blockchain", err.Error())
+			log.Fatal("Fail get blockchain", err.Error())
 		}
 		family, err := jsonparser.GetString(value, "family")
 		if err != nil {
-			log.Println("Fail get family", err.Error())
+			log.Fatal("Fail get family", err.Error())
 		}
+		id := addrStr + chain
 		//将不重复数据存入到addrList中
 		if _, ok := temp[addrStr]; !ok {
 			temp[addrStr] = struct{}{}
-			//根据address，查询该地址是否已经存在与
-			isExist, err := es.IsExistById(constants.ES_ADDRESS, addrStr)
+			//根据address，查询该地址是否已经存在
+			isExist, err := es.IsExistById(constants.ES_ADDRESS, id)
 			if err != nil {
-				log.Printf("IsExistById Error :%v\n", err.Error())
+				log.Fatalf("IsExistById Error :%v\n", err.Error())
 				return
 			}
 			//增加地址来源信息
-			dsAddrInfo := entities.AdsDataSource{
+			dsAddrInfo := domain.AdsDataSource{
 				DsAddr:     url,
-				DsType:     strconv.Itoa(constants.DS_TYPE_URL),
+				DsType:     constants.DS_OPENSANCTIONS,
 				Illustrate: "Suspected extortion through" + family,
 				Time:       time.Now(),
 			}
 			//判断该风险地址是否已经存在，若该地址已经存在，则更新地址来源
 			if isExist {
 				log.Printf("%s信息已存在,添加该数据来源\n", addrStr)
-				err = es.AddDsAddrSource(addrStr, dsAddrInfo)
+				err = es.AddDsAddrSource(id, dsAddrInfo)
 				if err != nil {
-					log.Println("Fail add data source:", err.Error())
+					log.Fatal("Fail add data source:", err.Error())
 					return
 				}
 			} else {
 				log.Printf("添加%s地址至风险名单中\n", addrStr)
 				//地址不存在，则新建
-				walletAddr := entities.WalletAddr{
+				walletAddr := domain.WalletAddr{
 					WaAddr:      addrStr,
 					WaRiskLevel: constants.INIT_LEVEL,
 					WaChain:     chain,
-					DsAddr: []entities.AdsDataSource{
+					DsAddr: []domain.AdsDataSource{
 						dsAddrInfo,
 					},
 				}
-				//将风险名单信息存储至风险名单中
-				err = es.Insert(constants.ES_ADDRESS, addrStr, walletAddr)
+				//将风险名单信息存储至风险名单中，id=地址+所在链
+				err = es.Insert(constants.ES_ADDRESS, id, walletAddr)
 				if err != nil {
+					log.Fatal("Fail inset risk address to es", err.Error())
 					return
 				}
-				/************************************
-				//增加该地址下子风险名单以及交易信息
-				//err = AddTransAndSourceByAddr(addrStr, level)
-				//if err != nil {
-				//	log.Println("Fail get address transaction and subList:", err.Error())
-				//	return
-				//}
-				*/
 			}
 		}
 	}, "result")
@@ -113,10 +110,10 @@ func GetAddrListByJSONOnBitcoin(url string) error {
 }
 
 // GetAddrListOnCsv 根据url获得csv格式的地址名单-批量获取address,获取index列的数据
-func GetAddrListOnCsv(url, ticker string, index uint) error {
+func GetAddrListOnCsv(url string) error {
 	var err error
 	//风险地址名单
-	//var addrList []entities.WalletAddr
+	//var addrList []domain.WalletAddr
 	//用于去除重复数据
 	temp := map[string]struct{}{}
 	//创建http请求
@@ -126,10 +123,12 @@ func GetAddrListOnCsv(url, ticker string, index uint) error {
 		return err
 	}
 	//发送http请求
-	resp, err := tool.MClient.Do(req)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		log.Println("http status is :", resp.StatusCode, "Do Error:", err.Error())
+	resp, err := tool.CreateClient().Do(req)
+	if err != nil {
+		log.Println("Do Error:", err.Error())
 		return err
+	} else if resp.StatusCode != http.StatusOK {
+		return errors.New("status code is " + strconv.Itoa(resp.StatusCode))
 	}
 	defer resp.Body.Close()
 	reader := csv.NewReader(resp.Body)
@@ -162,9 +161,9 @@ func GetAddrListOnCsv(url, ticker string, index uint) error {
 				log.Printf("IsExistById Error :%v\n", err.Error())
 				continue
 			}
-			dsAddrInfo := entities.AdsDataSource{
+			dsAddrInfo := domain.AdsDataSource{
 				DsAddr:     url,
-				DsType:     strconv.Itoa(constants.DS_TYPE_URL),
+				DsType:     constants.DS_UNISWAP,
 				Illustrate: category + "-" + riskType,
 				Time:       time.Now(),
 			}
@@ -179,11 +178,11 @@ func GetAddrListOnCsv(url, ticker string, index uint) error {
 			} else {
 				log.Printf("添加%s地址至风险名单信息\n", addrStr)
 				//地址不存在，则新建
-				walletAddr := entities.WalletAddr{
+				walletAddr := domain.WalletAddr{
 					WaAddr:      addrStr,
 					WaRiskLevel: constants.INIT_LEVEL,
 					WaChain:     "ethereum",
-					DsAddr: []entities.AdsDataSource{
+					DsAddr: []domain.AdsDataSource{
 						dsAddrInfo,
 					},
 				}
@@ -193,166 +192,10 @@ func GetAddrListOnCsv(url, ticker string, index uint) error {
 					continue
 				}
 			}
-			/*************************根据风险子名单信息，查询风险子名单信息
-			err = AddTranAndSourByAddrOnEth(addrStr, level)
-			if err != nil {
-				log.Println("Fail get address transaction and subList:", err.Error())
-				continue
-			}
-			*/
 		}
 	}
 	return nil
 }
-
-// GetAddrListOnXmlByPath 根据url获取xml格式的地址名单-根据指定的路径查询,查询地址
-//func GetAddrListOnXmlByPath(url, ticker, searchPath string, level uint) error {
-//var err error
-////用于去除重复数据
-//temp := map[string]struct{}{}
-////发送http请求
-//resp, err := MClient.Get(url)
-//if err != nil || resp.StatusCode != http.StatusOK {
-//	log.Println("http status is :", resp.StatusCode, "Do Error:", err.Error())
-//	return err
-//}
-//defer resp.Body.Close()
-////将文件读取至etree文档
-//doc := etree.NewDocument()
-//if i, err := doc.ReadFrom(resp.Body); err != nil || i <= 0 {
-//	log.Fatal("error:", err, "or read file is nil")
-//	return err
-//}
-////根据指定路径查询
-//for _, e := range doc.FindElements(searchPath) {
-//	//将不重复数据存入到addrList中
-//	if _, ok := temp[e.Text()]; !ok {
-//		temp[e.Text()] = struct{}{}
-//		addrStr := e.Text() //地址
-//		//根据address，查询该地址是否已经存在
-//		isExist, err := IsExistById(param.WA_ADDR_INDEX, addrStr)
-//		if err != nil {
-//			log.Printf("IsExistById Error :%v\n", err.Error())
-//			continue
-//		}
-//		dsAddrInfo := entities.AdsDataSource{
-//			DsAddr: url,
-//			DsType: param.DS_TYPE_URL,
-//			Number: param.INIT_NUMBER,
-//		}
-//		//若该地址已经存在，则更新地址来源
-//		if isExist {
-//			log.Printf("%s信息已存在,添加该数据来源\n", addrStr)
-//			AddDsAddrSource(addrStr, dsAddrInfo)
-//		} else {
-//			log.Printf("添加%s地址信息\n", addrStr)
-//			//地址不存在，则新建
-//			walletAddr := entities.WalletAddr{
-//				WaAddr:      addrStr,
-//				WaRiskLevel: param.INIT_LEVEL,
-//				WaTicker:    ticker,
-//				WaChain:     GetChainByTicker(ticker),
-//				DsAddr: []entities.AdsDataSource{
-//					dsAddrInfo,
-//				},
-//			}
-//			Insert(param.WA_ADDR_INDEX, addrStr, walletAddr)
-//		}
-//	}
-//}
-//return nil
-//}
-//func IsExistAddressTest() error {
-//	var err error
-//	//用于去除重复数据
-//	hash := "81865933c27f00280d115264bcedf4731c614303af79453e524e7c1f88d26446"
-//	address1 := "17TkPysx7GyMQTfLTFGq73d8se2Ewp7aQZ"
-//	address2 := "3KX2XXxurkbEn3M1zYAW9Dn9QtjUWzGJbP"
-//	//发送http请求
-//	//resp, err := MClient.Get("https://www.treasury.gov/ofac/downloads/sdn.xml")
-//	////fmt.Println(resp)
-//	//if err != nil || resp.StatusCode != http.StatusOK {
-//	//	//		log.Println("http status is :", resp.StatusCode, "Do Error:", err.Error())
-//	//	return err
-//	//}
-//	bboy, err := os.ReadFile("./sdn.xml")
-//	if err != nil {
-//		fmt.Println("文件读取失败:", err.Error())
-//		return err
-//	}
-//	//将文件读取至etree文档
-//	doc := etree.NewDocument()
-//	if i, err := doc.ReadFrom(bytes.NewReader(bboy)); err != nil || i <= 0 {
-//		log.Fatal("error:", err, "or read file is nil")
-//		return err
-//	}
-//	path := etree.MustCompilePath("./sdnList/sdnEntry[lastName='HYDRA MARKET']/idList")
-//	//根据指定路径查询
-//	idList := doc.FindElementPath(path)
-//	for _, id := range idList.SelectElements("id") {
-//		fmt.Println("1111111111")
-//		//获取地址
-//		addrStr := id.SelectElement("idNumber").Text()
-//		//根据地址查询
-//		url := getUrlToBtcTrans(addrStr)
-//		sen := RandInt(1, 10)
-//		time.Sleep(time.Millisecond * time.Duration(sen))
-//		//发送http请求。根据url获取到指定账户的所有交易信息
-//		clien := http.DefaultClient
-//		respBit, err := clien.Get(url)
-//		if err != nil {
-//			log.Println("Do Error:", err.Error())
-//			return err
-//		}
-//		body, err := io.ReadAll(respBit.Body)
-//		if err != nil {
-//			log.Fatal("Io Read Error:", err)
-//			return err
-//		}
-//		var btcInfo entities.TransactionBtc
-//		err = json.Unmarshal(body, &btcInfo)
-//		if err != nil {
-//			fmt.Println("body:", string(body), "\taddrStr:", addrStr)
-//			log.Println("json unmarshal error:", err.Error())
-//			continue
-//		}
-//		for _, tx := range btcInfo.Txs {
-//			//如果哈希值相等
-//			if strings.EqualFold(tx.Hash, hash) {
-//				fmt.Println(hash, "是属于", addrStr)
-//				return nil
-//			}
-//			for _, input := range tx.Inputs {
-//				if strings.EqualFold(input.PrevOut.Addr, address1) {
-//					fmt.Println(address1, "是属于", addrStr, tx.Hash, "中的input address")
-//					return nil
-//				} else if strings.EqualFold(input.PrevOut.Addr, address2) {
-//					fmt.Println(address2, "是属于", addrStr, tx.Hash, "中的input address")
-//					return nil
-//				}
-//			}
-//			for _, out := range tx.Out {
-//				if strings.EqualFold(out.Addr, address1) {
-//					fmt.Println(address1, "是属于", addrStr, tx.Hash, "中的input address")
-//					return nil
-//				} else if strings.EqualFold(out.Addr, address2) {
-//					fmt.Println(address2, "是属于", addrStr, tx.Hash, "中的input address")
-//					return nil
-//				}
-//			}
-//		}
-//
-//	}
-//
-//	return nil
-//}
-
-//func RandInt(min, max int) int {
-//	if min >= max || min == 0 || max == 0 {
-//		return max
-//	}
-//	return rand.Intn(max-min+1) + min
-//}
 
 // GetAddrListOnXmlByElement 根据url获取xml格式的地址名单-根据访问元素，查询所在链以及地址
 // 目前链[XBT(BTC), ETH,BSC(bnb),ARB,
@@ -371,7 +214,7 @@ func GetAddrListOnCsv(url, ticker string, index uint) error {
 func GetAddrListOnXmlByElement(url string) error {
 	var err error
 	//发送http请求
-	resp, err := tool.MClient.Get(url)
+	resp, err := tool.CreateClient().Get(url)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		log.Println("http status is :", resp.StatusCode, "Do Error:", err.Error())
 		return err
@@ -386,10 +229,10 @@ func GetAddrListOnXmlByElement(url string) error {
 	root := doc.SelectElement("sdnList")
 	//访问元素 sdnList->sdnEntry->idList->id->idType
 	for _, sdnEntry := range root.SelectElements("sdnEntry") {
-		var entityInfo = new(entities.Entity)
+		var entityInfo = new(domain.Entity)
 		var emailList, websiteList, phoneList []string
-		var otherList []entities.OtherInfo
-		var idInfoList []entities.ID
+		var otherList []domain.OtherInfo
+		var idInfoList []domain.ID
 		//为每一个sdnEntry创建一个id
 		entityId := uuid.New().String()
 		if idList := sdnEntry.SelectElement("idList"); idList != nil {
@@ -411,7 +254,7 @@ func GetAddrListOnXmlByElement(url string) error {
 				} else if idType == constants.ORGAN_DATE { //获取机构成立时间
 					entityInfo.OrgEstDate = idNumberValue
 				} else if idType == constants.OTHER_INFO1 || idType == constants.OTHER_INFO2 || idType == constants.OTHER_INFO3 { //获取其他备注信息
-					otherInfo := entities.OtherInfo{
+					otherInfo := domain.OtherInfo{
 						Type: idType,
 						Info: idNumberValue,
 					}
@@ -425,7 +268,7 @@ func GetAddrListOnXmlByElement(url string) error {
 					}
 					//若匹配失败，将id标签下的信息存储到ID列表中
 					if !isCurrency {
-						idInfo := entities.ID{
+						idInfo := domain.ID{
 							IDType:         idType,
 							IDNumber:       idNumberValue,
 							IDCountry:      id.SelectElement(constants.ID_COUNTRY).Text(),
@@ -446,9 +289,9 @@ func GetAddrListOnXmlByElement(url string) error {
 							continue
 						}
 						//记录来源信息
-						dsAddrInfo := entities.AdsDataSource{
+						dsAddrInfo := domain.AdsDataSource{
 							DsAddr:     url,
-							DsType:     strconv.Itoa(constants.DS_OFAC),
+							DsType:     constants.DS_OFAC,
 							Illustrate: "Derived from the OFAC Sanctions List.",
 							Time:       time.Now(),
 						}
@@ -459,12 +302,12 @@ func GetAddrListOnXmlByElement(url string) error {
 						} else {
 							log.Printf("添加%s地址信息\n", idNumberValue)
 							//地址不存在，则新建风险名单信息,并存储到es中
-							walletAddr := entities.WalletAddr{
+							walletAddr := domain.WalletAddr{
 								WaAddr:      idNumberValue,
 								EntityId:    entityId,
 								WaRiskLevel: constants.INIT_LEVEL,
 								WaChain:     chain,
-								DsAddr: []entities.AdsDataSource{
+								DsAddr: []domain.AdsDataSource{
 									dsAddrInfo,
 								},
 							}
@@ -494,12 +337,12 @@ func GetAddrListOnXmlByElement(url string) error {
 }
 
 // 根据指定的element存储sdn名单上的entity信息
-func getEntityInfo(sdnEntry *etree.Element, entityInfo *entities.Entity) {
+func getEntityInfo(sdnEntry *etree.Element, entityInfo *domain.Entity) {
 	var akaName, otherAddress []string
-	var addrInfoList []entities.AddressList   //地址列表
-	var daBiList []entities.DateOfBirth       //出生日期列表
-	var plBiList []entities.PlaceOfBirth      //出生地址列表
-	var ntList, czList []entities.Nationality //国籍列表
+	var addrInfoList []domain.AddressList   //地址列表
+	var daBiList []domain.DateOfBirth       //出生日期列表
+	var plBiList []domain.PlaceOfBirth      //出生地址列表
+	var ntList, czList []domain.Nationality //国籍列表
 	//获取风险名单实体信息
 	sdnType := sdnEntry.SelectElement("sdnType").Text()
 	//获取实体名字
@@ -535,7 +378,7 @@ func getEntityInfo(sdnEntry *etree.Element, entityInfo *entities.Entity) {
 				otherAddress = append(otherAddress, child.Text())
 			}
 			//将地址信息存储到地址信息列表中
-			addressList := entities.AddressList{
+			addressList := domain.AddressList{
 				Country:         country,
 				StateOrProvince: stateOrProvince,
 				City:            city,
@@ -550,7 +393,7 @@ func getEntityInfo(sdnEntry *etree.Element, entityInfo *entities.Entity) {
 		for _, dateOfBirthItem := range dateOfBirthList.SelectElements("dateOfBirthItem") {
 			dateOfBirth := dateOfBirthItem.SelectElement("dateOfBirth").Text()
 			mainEntryStr := dateOfBirthItem.SelectElement("mainEntry").Text()
-			daBi := entities.DateOfBirth{
+			daBi := domain.DateOfBirth{
 				DateOfBirth: dateOfBirth,
 				MainEntry:   mainEntryStr == "true",
 			}
@@ -563,7 +406,7 @@ func getEntityInfo(sdnEntry *etree.Element, entityInfo *entities.Entity) {
 		for _, placeOfBirthItem := range placeOfBirthList.SelectElements("placeOfBirthItem") {
 			placeOfBirth := placeOfBirthItem.SelectElement("placeOfBirth").Text()
 			mainEntryStr := placeOfBirthItem.SelectElement("mainEntry").Text()
-			plBi := entities.PlaceOfBirth{
+			plBi := domain.PlaceOfBirth{
 				PlaceOfBirth: placeOfBirth,
 				MainEntry:    mainEntryStr == "true",
 			}
@@ -576,7 +419,7 @@ func getEntityInfo(sdnEntry *etree.Element, entityInfo *entities.Entity) {
 		for _, nationality := range nationalityList.SelectElements("nationality") {
 			country := nationality.SelectElement("country").Text()
 			mainEntryStr := nationality.SelectElement("mainEntry").Text()
-			nt := entities.Nationality{
+			nt := domain.Nationality{
 				Country:   country,
 				MainEntry: mainEntryStr == "true",
 			}
@@ -589,7 +432,7 @@ func getEntityInfo(sdnEntry *etree.Element, entityInfo *entities.Entity) {
 		for _, citizenship := range citizenshipList.SelectElements("citizenship") {
 			country := citizenship.SelectElement("country").Text()
 			mainEntryStr := citizenship.SelectElement("mainEntry").Text()
-			cz := entities.Nationality{
+			cz := domain.Nationality{
 				Country:   country,
 				MainEntry: mainEntryStr == "true",
 			}

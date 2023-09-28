@@ -5,7 +5,7 @@ import (
 	"io"
 	"log"
 	"lyods-adsTool/config"
-	"lyods-adsTool/entities"
+	"lyods-adsTool/domain"
 	"lyods-adsTool/pkg/constants"
 	"net/http"
 )
@@ -13,7 +13,7 @@ import (
 // GetTransRecodeOnVerge 根据指定地址获取地址的交易记录
 //func GetTransRecodeOnVerge(addr string) ([]string, error) {
 //var err error
-//var trans entities.TransRecordByAddrOnVerge
+//var trans domain.TransRecordByAddrOnVerge
 ////根据addr去查询地址的交易记录
 //resp, err := MClient.Get(getTransRecodeUrl(addr))
 //if err != nil || resp.StatusCode != http.StatusOK {
@@ -44,28 +44,28 @@ import (
 ////)
 ////if err != nil {
 ////	log.Fatal("json unmarshal error:", err.Error())
-////	return entities.TransRecordByAddrOnVerge{}, err
+////	return domain.TransRecordByAddrOnVerge{}, err
 ////}
 //return trans, nil
 //}
 
 // GetTransInfoOnVerge 根据交易id获得具体交易信息
-func GetTransInfoOnVerge(txId string) (entities.TransactionOnVerge, error) {
+func GetTransInfoOnVerge(txId string) (domain.TransactionOnVerge, error) {
 	//根据地址查询出交易记录，根据交易类型，查询转出交易记录
 	var err error
 	//根据addr去查询地址的交易记录
-	resp, err := MClient.Get(getTransInfoUrl(txId))
+	resp, err := CreateClient().Get(getTransInfoUrl(txId))
 	if err != nil || resp.StatusCode != http.StatusOK {
 		log.Println("http status is :", resp.StatusCode, "Do Error:", err.Error())
-		return entities.TransactionOnVerge{}, err
+		return domain.TransactionOnVerge{}, err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(err.Error())
-		return entities.TransactionOnVerge{}, err
+		return domain.TransactionOnVerge{}, err
 	}
-	var trans entities.TransactionOnVerge
+	var trans domain.TransactionOnVerge
 	//将查询到的数据绑定到结构体中
 	err = json.Unmarshal(
 		body,
@@ -73,7 +73,7 @@ func GetTransInfoOnVerge(txId string) (entities.TransactionOnVerge, error) {
 	)
 	if err != nil {
 		log.Fatal("json unmarshal error:", err.Error())
-		return entities.TransactionOnVerge{}, err
+		return domain.TransactionOnVerge{}, err
 	}
 	return trans, nil
 }

@@ -17,4 +17,6 @@ const (
 	EVENT_PARAM_MONEY     = "money"
 	EVENT_PARAM_AMOUNT    = "amount"
 	EVENT_PARAM_TIMESTAMP = "timestamp"
+	EVENT_PARAM_SENDER    = "sender"
+	EVENT_PARAM_RELAYER   = "relayer"
 )

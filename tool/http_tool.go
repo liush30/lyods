@@ -7,14 +7,8 @@ import (
 	"net/url"
 )
 
-var MClient *http.Client
-
-func init() {
-	MClient = createClient()
-}
-
-// 获取client对象
-func createClient() *http.Client {
+// CreateClient 获取client对象
+func CreateClient() *http.Client {
 	//创建代理URL
 	proxyURL, err := url.Parse(config.URL_PROXY)
 	if err != nil {

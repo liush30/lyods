@@ -10,7 +10,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/core/update"
 	"log"
-	"lyods-adsTool/entities"
+	"lyods-adsTool/domain"
 	"lyods-adsTool/pkg/constants"
 	"lyods-adsTool/tool"
 	"net"
@@ -111,33 +111,33 @@ func IsExistById(indexName, id string) (bool, error) {
 }
 
 // GetWalletAddrById 根据指定id,查询地址名单信息
-func GetWalletAddrById(indexName, id string) (entities.WalletAddr, error) {
+func GetWalletAddrById(indexName, id string) (domain.WalletAddr, error) {
 	var err error
-	var addrInfo entities.WalletAddr
+	var addrInfo domain.WalletAddr
 	//判断id是否存在
 	isExists, err := IsExistById(indexName, id)
 	if err != nil {
 		log.Printf("GetWalletAddr:Elastic 查询%s是否存在失败：%v\n", id, err.Error())
-		return entities.WalletAddr{}, err
+		return domain.WalletAddr{}, err
 	}
 	//若不存在,直接返回为空
 	if !isExists {
-		return entities.WalletAddr{}, err
+		return domain.WalletAddr{}, err
 	}
 	res, err := ElasticClient.Get(indexName, id).Do(context.Background())
 	if err != nil {
 		log.Printf("GetWalletAddr:Elastic 查询%s失败：%v\n", id, err.Error())
-		return entities.WalletAddr{}, err
+		return domain.WalletAddr{}, err
 	}
 	data, err := res.Source_.MarshalJSON()
 	if err != nil {
 		log.Printf("GetWalletAddr:MarshalJSON 失败:%v\n", err.Error())
-		return entities.WalletAddr{}, err
+		return domain.WalletAddr{}, err
 	}
 	err = json.Unmarshal(data, &addrInfo)
 	if err != nil {
 		log.Println("json unmarshal WalletAddr error:", err.Error())
-		return entities.WalletAddr{}, err
+		return domain.WalletAddr{}, err
 	}
 	return addrInfo, nil
 
@@ -220,7 +220,7 @@ func UpdateAddrLevel(id string, newLevel int) error {
 //		tool.IsError(err, "IsExistById Error :")
 //		return err
 //	}
-//	dsAddrInfo := entities.AdsDataSource{
+//	dsAddrInfo := domain.AdsDataSource{
 //		DsAddr: parentAddr, //将父级地址作为来源地址
 //		DsType: constants.DS_TYPE_ADDRESS,
 //		Number: constants.INIT_NUMBER,
@@ -233,7 +233,7 @@ func UpdateAddrLevel(id string, newLevel int) error {
 //	//该地址已经存在，更新数据来源信息
 //	if isExist {
 //		//获取该地址信息
-//		//var addrInfo entities.WalletAddr
+//		//var addrInfo domain.WalletAddr
 //		addrInfo, err := GetWalletAddrById(param.WA_ADDR_INDEX, inputAddr)
 //		if err != nil {
 //			tool.IsError(err, "GetWalletAddr get address info")
@@ -267,12 +267,12 @@ func UpdateAddrLevel(id string, newLevel int) error {
 //		log.Printf("%s信息已存在,添加该数据来源\n", inputAddr)
 //	} else {
 //		//该地址不存在，新增风险名单信息
-//		addrInfo := entities.WalletAddr{
+//		addrInfo := domain.WalletAddr{
 //			WaAddr:      inputAddr,
 //			WaRiskLevel: uint(parentLevel + 1),
 //			WaChain:     utils.GetChainByTicker(constants.TICKER_BTC),
 //			WaTicker:    constants.TICKER_BTC,
-//			DsAddr: []entities.AdsDataSource{
+//			DsAddr: []domain.AdsDataSource{
 //				dsAddrInfo,
 //			},
 //		}

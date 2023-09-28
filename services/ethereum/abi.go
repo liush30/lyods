@@ -3,34 +3,7 @@ package ethereum
 import (
 	"database/sql"
 	"fmt"
-	"github.com/buger/jsonparser"
-	"io"
 )
-
-// GetContractAbi 获得合约地址的abi-GetRiskListOnContractAddr
-func (e *EthClient) GetContractAbi(addr string) (string, error) {
-	var err error
-	//发送http请求，查询到合约的abi
-	resp, err := e.MClient.Get(getContractAbiUrl(addr))
-	if err != nil {
-		//return "", err
-		return "", fmt.Errorf("GetContractAbi: Fail request,http status is %v, do error ->%v", resp.StatusCode, err.Error())
-	}
-	defer resp.Body.Close()
-	//读取数据
-	body, err := io.ReadAll(resp.Body)
-	if err != nil || body == nil {
-		return "", fmt.Errorf("GetContractAbi: Io Read Error->%v", err.Error())
-	}
-	abi, err := jsonparser.GetString(body, "result")
-	if err != nil {
-		return "", fmt.Errorf("GetContractAbi: Fail get result->%v", err.Error())
-	}
-	if abi == "Contract source code not verified" {
-		return "", fmt.Errorf("GetContractAbi:Contract source code not verified")
-	}
-	return abi, nil
-}
 
 // AddABIRecords 增加表中还未存储abi的合约地址
 func (e *EthClient) AddABIRecords(db *sql.DB) error {

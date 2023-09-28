@@ -1,7 +1,8 @@
 package constants
 
 const (
-	HTTP_GET = "get"
+	HTTP_GET  = "get"
+	HTTP_POST = "post"
 )
 const (
 	CHAIN_DASH     = iota //所在链-DASH
@@ -14,15 +15,16 @@ const (
 
 // 风险名单来源类型
 const (
-	DS_TYPE_URL = iota //来源类型-普通url
-	DS_OFAC
-	DS_TYPE_ADDRESS //来源类型-地址
+	DS_OPENSANCTIONS = "opensanctions" //来源类型-OPENSANCTIONS
+	DS_OFAC          = "ofac"          //来源类型-OFAC
+	DS_UNISWAP       = "uniswap"       //来源类型-UNISWAP
+	DS_CUSTOMIZE     = "customize"     //来源类型-平台自定义
+	DS_WITH_RISK     = "with_risk"     //来源类型-涉及与风险地址交易
 )
 
 // 初始化数据
 const (
-	INIT_NUMBER = 1 //初始标记次数
-	INIT_LEVEL  = 1
+	INIT_LEVEL = 1
 )
 
 // es相关常量定义信息
@@ -30,4 +32,9 @@ const (
 	ES_ADDRESS     = "risk_address"     //风险名单索引名称
 	ES_TRANSACTION = "risk_transaction" //风险交易索引名称
 	ES_ENTITY      = "risk_entity"      //风险名单实体信息索引名称
+)
+const (
+	RPC_ID           = 1
+	RPC_VERSION      = "2.0"
+	RPC_METHOD_TRACE = "trace_transaction"
 )

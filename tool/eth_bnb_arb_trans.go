@@ -75,7 +75,7 @@ import (
 //			IsError(err, "Fail get value")
 //			transInput, err := jsonparser.GetString(value, "input")
 //			IsError(err, "Fail get input")
-//			transInfo := entities.EsTrans{
+//			transInfo := domain.EsTrans{
 //				Hash:              transHash,
 //				Address:           addr,
 //				TxType:            constants.TRANS_TYPE_NORMAL,
@@ -91,15 +91,15 @@ import (
 //				Time:              int64(transTime),
 //				BlockHeight:       transBlockNumer,
 //				BlockHash:         transBlockHash,
-//				Inputs: []entities.InputsTrans{
-//					entities.InputsTrans{
+//				Inputs: []domain.InputsTrans{
+//					domain.InputsTrans{
 //						Witness: transInput,
 //						Addr:    fromAddress,
 //						Value:   transValue,
 //					},
 //				},
-//				Out: []entities.OutTrans{
-//					entities.OutTrans{
+//				Out: []domain.OutTrans{
+//					domain.OutTrans{
 //						Addr: toAddress,
 //					},
 //				},
@@ -178,65 +178,65 @@ import (
 //}
 //
 //// GetTransInOnEthOrBnbOrArb 根据指定地址查询内部交易信息
-//func GetTransInOnEthOrBnbOrArb(chainType uint, addr string) (entities.TransactionEthOrBnb, error) {
+//func GetTransInOnEthOrBnbOrArb(chainType uint, addr string) (domain.TransactionEthOrBnb, error) {
 //	var err error
 //	//内部交易信息
-//	var trans entities.TransactionEthOrBnb
+//	var trans domain.TransactionEthOrBnb
 //	//获取url-根据地址查询以太坊内部交易信息
 //	url := getInternalTransUrl(chainType, addr)
 //	//若url为空，说明输入的chain type不正确
 //	if url == "" || len(url) == 0 {
 //		log.Println("incorrect chain type")
-//		return entities.TransactionEthOrBnb{}, errors.New("incorrect chain type")
+//		return domain.TransactionEthOrBnb{}, errors.New("incorrect chain type")
 //	}
 //	//发送HTTP请求
 //	resp, err := MClient.Get(url)
 //	if err != nil || resp.StatusCode != http.StatusOK {
 //		log.Println("http status is :", resp.StatusCode, "Do Error:", err.Error())
-//		return entities.TransactionEthOrBnb{}, err
+//		return domain.TransactionEthOrBnb{}, err
 //	}
 //	defer resp.Body.Close()
 //	body, err := io.ReadAll(resp.Body)
 //	if err != nil {
 //		log.Fatal("Io Read Error:", err.Error())
-//		return entities.TransactionEthOrBnb{}, err
+//		return domain.TransactionEthOrBnb{}, err
 //	}
 //	//将获取的数据反序列化为结构体信息
 //	err = json.Unmarshal(body, &trans)
 //	if err != nil {
 //		log.Fatal(err.Error())
-//		return entities.TransactionEthOrBnb{}, err
+//		return domain.TransactionEthOrBnb{}, err
 //	}
 //	return trans, err
 //}
 //
 //// GetUsdtTransOnEth 根据指定地址查询erc20转账信息
-//func GetUsdtTransOnEth(addr string) (entities.TransactionEthOrBnb, error) {
+//func GetUsdtTransOnEth(addr string) (domain.TransactionEthOrBnb, error) {
 //	var err error
-//	var trans entities.TransactionEthOrBnb
+//	var trans domain.TransactionEthOrBnb
 //	//获取url-根据地址查询以太坊中的USDT交易信息
 //	url := getUsdtTransUrl(addr)
 //	//若url为空，说明输入的chain type不正确
 //	if url == "" || len(url) == 0 {
 //		log.Println("incorrect chain type")
-//		return entities.TransactionEthOrBnb{}, errors.New("incorrect chain type")
+//		return domain.TransactionEthOrBnb{}, errors.New("incorrect chain type")
 //	}
 //	//发送HTTP请求
 //	resp, err := MClient.Get(url)
 //	if err != nil || resp.StatusCode != http.StatusOK {
 //		log.Println("http status is :", resp.StatusCode, "Do Error:", err.Error())
-//		return entities.TransactionEthOrBnb{}, err
+//		return domain.TransactionEthOrBnb{}, err
 //	}
 //	defer resp.Body.Close()
 //	body, err := io.ReadAll(resp.Body)
 //	if err != nil {
 //		log.Fatal(err.Error())
-//		return entities.TransactionEthOrBnb{}, err
+//		return domain.TransactionEthOrBnb{}, err
 //	}
 //	//将获取的数据反序列化为结构体信息
 //	err = json.Unmarshal(body, &trans)
 //	if err != nil {
-//		return entities.TransactionEthOrBnb{}, err
+//		return domain.TransactionEthOrBnb{}, err
 //	}
 //	return trans, nil
 //}

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"log"
-	"lyods-adsTool/entities"
+	"lyods-adsTool/domain"
 	"lyods-adsTool/pkg/constants"
 	"net/http"
 )
@@ -34,8 +34,8 @@ import (
 //	}
 //	//遍历该地址的每一条交易信息，获取转出的交易信息，并将转出对象地址存储
 //	_, err = jsonparser.ArrayEach(body, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-//		var inputTransList []entities.InputsTrans //inputs信息
-//		var outTransList []entities.OutTrans      //out信息
+//		var inputTransList []domain.InputsTrans //inputs信息
+//		var outTransList []domain.OutTrans      //out信息
 //		var isTransOut bool                       //是否为转出交易
 //		transHash, err := jsonparser.GetString(value, "hash")
 //		IsError(err, "Fail get hash")
@@ -69,7 +69,7 @@ import (
 //			IsError(err, "Fail get script")
 //			outAddr, err := jsonparser.GetString(outValue, "addr")
 //			IsError(err, "Fail get addr")
-//			outTransList = append(outTransList, entities.OutTrans{
+//			outTransList = append(outTransList, domain.OutTrans{
 //				Spent:   outSpent,
 //				//Value:   string(outValueVal),
 //				TxIndex: string(outTxIndex),
@@ -98,7 +98,7 @@ import (
 //			IsError(err, "Fail get input tx_index")
 //			//inputValueVal, _, _, err := jsonparser.Get(inputValue, "prev_out", "value")
 //			IsError(err, "Fail get input value")
-//			inputsTrans := entities.InputsTrans{
+//			inputsTrans := domain.InputsTrans{
 //				Sequence: inputSequence,
 //				Witness:  inputWitness,
 //				Script:   inputScript,
@@ -119,7 +119,7 @@ import (
 //				}
 //			}
 //		}, "inputs")
-//		//transInfo := entities.EsTrans{
+//		//transInfo := domain.EsTrans{
 //		//	Hash:        transHash,
 //		//	Address:     addr,
 //		//	//TxType:      constants.TRANS_TYPE_NORMAL,
@@ -184,23 +184,23 @@ import (
 //}
 
 // GetTransOnBtc 根据给定的地址，查询出该地址的所有交易信息,并将交易信息存储于es中
-func GetTransOnBtc(addr string) (entities.TransactionBtc, error) {
+func GetTransOnBtc(addr string) (domain.TransactionBtc, error) {
 	var err error
-	var trans entities.TransactionBtc
+	var trans domain.TransactionBtc
 	//根据指定地址查询交易信息
 	//获得url
 	url := getUrlToBtcTrans(addr)
 	//发送http请求
-	resp, err := MClient.Get(url)
+	resp, err := CreateClient().Get(url)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		log.Println("http status is :", resp.StatusCode, "Do Error:", err.Error())
-		return entities.TransactionBtc{}, err
+		return domain.TransactionBtc{}, err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(err.Error())
-		return entities.TransactionBtc{}, err
+		return domain.TransactionBtc{}, err
 	}
 	//将查询到的数据绑定到结构体中
 	err = json.Unmarshal(
@@ -209,7 +209,7 @@ func GetTransOnBtc(addr string) (entities.TransactionBtc, error) {
 	)
 	if err != nil {
 		log.Fatal("json unmarshal error:", err.Error())
-		return entities.TransactionBtc{}, err
+		return domain.TransactionBtc{}, err
 	}
 	return trans, nil
 }

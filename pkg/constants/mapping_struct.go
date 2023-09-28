@@ -17,6 +17,9 @@ const ADDR_MAPPING = `
             "waChain":{
                 "type":"keyword"
             },
+            "isTrace":{ 
+				"type":"boolean"
+			},
             "adsDataSource":{
                 "type":"nested",
                 "properties":{
@@ -212,7 +215,7 @@ const TRANS_MAPPING = `
                     "tokenDecimal":{
                         "type":"short"
                     },
-					"tokenAddress":{
+					"contractAddress":{
 						"type":"keyword"
 					}
                     "amount":{

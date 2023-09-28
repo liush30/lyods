@@ -21,5 +21,6 @@ const (
 )
 const (
 	// URL_INFRUA = "https://fabled-radial-isle.discover.quiknode.pro/406bcd9a632fae87343b9baf3ef47d664161810b/" //quick Node
-	URL_INFRUA = "https://eth-mainnet.g.alchemy.com/v2/THcL8Tk-e_GH4Yjagko7-zOMqRGnk2SL"
+	URL_INFRUA    = "https://eth-mainnet.g.alchemy.com/v2/THcL8Tk-e_GH4Yjagko7-zOMqRGnk2SL"
+	URL_CHAINBASE = "https://ethereum-mainnet.s.chainbase.online/v1/"
 )
