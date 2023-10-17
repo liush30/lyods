@@ -10,128 +10,148 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/core/update"
 	"log"
+	"lyods-adsTool/config"
 	"lyods-adsTool/domain"
 	"lyods-adsTool/pkg/constants"
-	"lyods-adsTool/tool"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 )
 
-var ElasticClient *elasticsearch.TypedClient
+type ElasticClient struct {
+	*elasticsearch.TypedClient
+}
 
 //var ctx context.Context
 
-func init() {
-	ElasticClient = createEsClient()
-	//ctx = context.Background()
-}
-
-// createEsClient 创建Es客户端
-func createEsClient() *elasticsearch.TypedClient {
+// CreateEsClient 创建Elasticsearch客户端
+func CreateEsClient() (*ElasticClient, error) {
 	cfg := elasticsearch.Config{
-		Addresses: []string{"https://localhost:9200"},
-		Username:  "elastic",
-		Password:  "123123",
+		Addresses: []string{config.ES_URL},
+		Username:  config.ES_USERNAME,
+		Password:  config.ES_PWD,
 		Transport: &http.Transport{
 			MaxIdleConnsPerHost:   10,
 			ResponseHeaderTimeout: time.Second,
 			DialContext:           (&net.Dialer{Timeout: time.Second}).DialContext,
-			TLSClientConfig:       &tls.Config{InsecureSkipVerify: true}, //忽略验证
+			TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
 		},
 	}
 	client, err := elasticsearch.NewTypedClient(cfg)
 	if err != nil {
-		// Handle error
 		log.Printf("Elastic 连接失败: %v\n", err.Error())
-	} else {
-		log.Println("Elastic 连接成功")
+		return nil, err
 	}
-	return client
+	log.Println("Elastic 连接成功")
+	return &ElasticClient{client}, nil
 }
 
 // CreateIndex 创建索引
-func CreateIndex(client *elasticsearch.Client, indexName, indexMapping string) error {
+func CreateIndex(es *ElasticClient, indexName, indexMapping string) error {
 	var err error
+	isExits, err := IndexExists(es, indexName)
+	if err != nil {
+		return fmt.Errorf("error checking index existence: %s", err)
+	}
+	//判断索引是否已经存在
+	if isExits {
+		log.Printf("Index %s already exists\n", indexName)
+		return nil
+	}
 	// 创建索引请求
 	createIndexRequest := esapi.IndicesCreateRequest{
 		Index: indexName,
 		Body:  strings.NewReader(indexMapping),
 	}
 	// 执行创建索引请求
-	res, err := createIndexRequest.Do(context.Background(), client)
+	res, err := createIndexRequest.Do(context.Background(), es)
 	if err != nil {
-		log.Fatalf("Error creating index: %s", err)
+		return fmt.Errorf("error creating index: %s", err)
 	}
 	defer res.Body.Close()
 
 	if res.IsError() {
-		log.Fatalf("Failed to create index: %s", res.Status())
-	} else {
-		fmt.Printf("Index '%s' created successfully.\n", indexName)
+		return fmt.Errorf("error creating index: %s", res)
+	} else if err != nil {
+		return err
 	}
 	return nil
 }
 
+// IndexExists 判断索引是否存在
+func IndexExists(es *ElasticClient, indexName string) (bool, error) {
+	req := esapi.IndicesExistsRequest{
+		Index: []string{indexName},
+	}
+
+	res, err := req.Do(context.Background(), es)
+	if err != nil {
+		return false, err
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode == 200 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 // DeleteIndexByName 根据索引值删除索引
-//func DeleteIndexByName(indexName string) error {
-//	//判断该索引是否存在
-//	exits, err := ElasticClient.IndexExists(indexName).Do(ctx)
-//	if err != nil {
-//		log.Printf("Elastic IndexExists Error:%v\n", err.Error())
-//		return err
-//	}
-//	//若索引不存在，返回错误信息
-//	if !exits {
-//		log.Printf("%s index not exits", indexName)
-//		return errors.New("index not exits")
-//	}
-//	_, err = ElasticClient.DeleteIndex(indexName).Do(ctx)
-//	if err != nil {
-//		log.Printf("Delete %s index error:%s ", indexName, err.Error())
-//		return err
-//	}
-//	return nil
-//}
+func DeleteIndexByName(es *ElasticClient, indexName string) error {
+	req := esapi.IndicesDeleteRequest{
+		Index: []string{indexName},
+	}
+
+	res, err := req.Do(context.Background(), es)
+	if err != nil {
+		return err
+	}
+
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return fmt.Errorf("error deleting index: %s", res.String())
+	}
+	return nil
+}
 
 // Insert 新增1条数据并指定id
-func Insert(indexName, id string, structBody interface{}) error {
-	_, err := ElasticClient.Index(indexName).Id(id).Request(structBody).Do(context.Background())
+func (c *ElasticClient) Insert(indexName, id string, structBody interface{}) error {
+	_, err := c.Index(indexName).Id(id).Request(structBody).Do(context.Background())
 	if err != nil {
-		log.Printf("Fail elastic add,id is %s,error:%s\n", id, err.Error())
+		log.Printf("Fail elastic add, id is %s, error: %s\n", id, err.Error())
 		return err
 	}
 	return nil
 }
 
 // IsExistById 按照ID查询数据信息是否存在
-func IsExistById(indexName, id string) (bool, error) {
-	return ElasticClient.Exists(indexName, id).Index(indexName).IsSuccess(nil)
+func (c *ElasticClient) IsExistById(indexName, id string) (bool, error) {
+	return c.Exists(indexName, id).Index(indexName).IsSuccess(nil)
 }
 
 // GetWalletAddrById 根据指定id,查询地址名单信息
-func GetWalletAddrById(indexName, id string) (domain.WalletAddr, error) {
-	var err error
+func (c *ElasticClient) GetWalletAddrById(indexName, id string) (domain.WalletAddr, error) {
 	var addrInfo domain.WalletAddr
-	//判断id是否存在
-	isExists, err := IsExistById(indexName, id)
+	isExists, err := c.IsExistById(indexName, id)
 	if err != nil {
-		log.Printf("GetWalletAddr:Elastic 查询%s是否存在失败：%v\n", id, err.Error())
+		log.Printf("GetWalletAddr: Elasticsearch query failed for %s: %v\n", id, err.Error())
 		return domain.WalletAddr{}, err
 	}
-	//若不存在,直接返回为空
 	if !isExists {
 		return domain.WalletAddr{}, err
 	}
-	res, err := ElasticClient.Get(indexName, id).Do(context.Background())
+	res, err := c.Get(indexName, id).Do(context.Background())
 	if err != nil {
-		log.Printf("GetWalletAddr:Elastic 查询%s失败：%v\n", id, err.Error())
+		log.Printf("GetWalletAddr: Elasticsearch query for %s failed: %v\n", id, err.Error())
 		return domain.WalletAddr{}, err
 	}
 	data, err := res.Source_.MarshalJSON()
 	if err != nil {
-		log.Printf("GetWalletAddr:MarshalJSON 失败:%v\n", err.Error())
+		log.Printf("GetWalletAddr: MarshalJSON failed: %v\n", err.Error())
 		return domain.WalletAddr{}, err
 	}
 	err = json.Unmarshal(data, &addrInfo)
@@ -140,12 +160,11 @@ func GetWalletAddrById(indexName, id string) (domain.WalletAddr, error) {
 		return domain.WalletAddr{}, err
 	}
 	return addrInfo, nil
-
 }
 
 // DeleteById 根据id删除指定数据
-func DeleteById(indexName, id string) error {
-	_, err := ElasticClient.Delete(indexName, id).Do(context.Background())
+func (c *ElasticClient) DeleteById(indexName, id string) error {
+	_, err := c.Delete(indexName, id).Do(context.Background())
 	if err != nil {
 		log.Printf("DeleteById:Elastic 删除%s失败:%v\n", id, err.Error())
 		return err
@@ -154,8 +173,8 @@ func DeleteById(indexName, id string) error {
 }
 
 // GetAddrLevel 获得指定地址得监控层次
-func GetAddrLevel(addr string) (int, error) {
-	res, err := ElasticClient.Get(constants.ES_ADDRESS, addr).Source_("waRiskLevel").Do(context.Background())
+func (c *ElasticClient) GetAddrLevel(addr string) (int, error) {
+	res, err := c.Get(constants.ES_ADDRESS, addr).Source_("waRiskLevel").Do(context.Background())
 	if err != nil {
 		log.Println("get address level error:", err.Error())
 		return -1, err
@@ -167,14 +186,14 @@ func GetAddrLevel(addr string) (int, error) {
 	}
 	val, err := jsonparser.GetInt(levelBytes, "waRiskLevel")
 	if err != nil {
-		tool.IsError(err, "jsonparser get waRiskLevel error")
+		//bitcoin.IsError(err, "jsonparser get waRiskLevel error")
 		return -1, err
 	}
 	return int(val), err
 }
 
 // UpdateDsAddrNumber 更新标记次数
-func UpdateDsAddrNumber(id, parAddr string, number int) error {
+func (c *ElasticClient) UpdateDsAddrNumber(id, parAddr string, number int) error {
 	updateData := map[string]any{
 		"source": `def targets = ctx._source.adsDataSource.findAll
         (addr -> addr.dsAddr == params.dsAddr); for(addr in targets) 
@@ -186,7 +205,7 @@ func UpdateDsAddrNumber(id, parAddr string, number int) error {
 	}
 	req := update.NewRequest()
 	req.Script = updateData
-	_, err := ElasticClient.Update(constants.ES_ADDRESS, id).Request(req).Do(context.Background())
+	_, err := c.Update(constants.ES_ADDRESS, id).Request(req).Do(context.Background())
 	if err != nil {
 		log.Printf("AddDsAddrSource:Elastic 更新%s失败：%v\n", id, err.Error())
 		return err
@@ -195,7 +214,7 @@ func UpdateDsAddrNumber(id, parAddr string, number int) error {
 }
 
 // UpdateAddrLevel 更新地址的风险层次
-func UpdateAddrLevel(id string, newLevel int) error {
+func (c *ElasticClient) UpdateAddrLevel(id string, newLevel int) error {
 	updateData := map[string]any{
 		"source": `ctx._source.waRiskLevel=params.waRiskLevel`,
 		"params": map[string]any{
@@ -204,7 +223,7 @@ func UpdateAddrLevel(id string, newLevel int) error {
 	}
 	req := update.NewRequest()
 	req.Script = updateData
-	_, err := ElasticClient.Update(constants.ES_ADDRESS, id).Request(req).Do(context.Background())
+	_, err := c.Update(constants.ES_ADDRESS, id).Request(req).Do(context.Background())
 	if err != nil {
 		log.Printf("UpdateAddrLevel:Elastic 更新%s\twaRiskLevel失败：%v\n", id, err.Error())
 		return err

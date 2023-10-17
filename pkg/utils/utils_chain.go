@@ -22,6 +22,13 @@ func ErrorLog(err error, str1 string) {
 		log.Printf("%s:%s\n", str1, err.Error())
 	}
 }
-func GetChain(name string) string {
-	return pkg.CurrencyToChain[name]
+
+// GetChain 通过币种名称得到所在链
+func GetChain(currency string) string {
+	return pkg.CurrencyToChain[currency]
+}
+
+// GetCurrency 通过所在链得到币种名称
+func GetCurrency(chain string) string {
+	return pkg.ChainToCurrency[chain]
 }

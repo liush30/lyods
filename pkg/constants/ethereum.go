@@ -1,0 +1,27 @@
+package constants
+
+const (
+	TO_KEY                  = "to"
+	HASH_KEY                = "hash"
+	GAS_USED_KEY            = "gasUsed"
+	IS_ERROR_KEY            = "isError"
+	CONTRACT_ADDR_KEY       = "contractAddress"
+	FUNCTION_NAME_KEY       = "functionName"
+	METHOD_ID_KEY           = "methodId"
+	CONFIRMATIONS_KEY       = "confirmations"
+	CUMULATIVE_GAS_USED_KEY = "cumulativeGasUsed"
+	GAS_PRICE_KEY           = "gasPrice"
+	TIME_STAMP_KEY          = "timeStamp"
+	BLOCK_NUMBER_KEY        = "blockNumber"
+	BLOCK_HASH_KEY          = "blockHash"
+	TRANSACTION_INDEX_KEY   = "transactionIndex"
+	FROM_KEY                = "from"
+	VALUE_KEY               = "value"
+	INPUT_KEY               = "input"
+	ACTION_KEY              = "action"
+	CALL_TYPE_KEY           = "callType"
+	RESULT_KEY              = "result"
+	OUTPUT_KEY              = "output"
+	TRACE_ADDRESS_KEY       = "traceAddress"
+	SUBTRACES_KEY           = "subtraces"
+)

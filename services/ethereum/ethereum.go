@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"log"
 	"lyods-adsTool/db"
@@ -33,36 +34,36 @@ func (e *EthClient) getInternalTxn(interParam *InternalTxnParam, internalTxn *do
 	}
 	//仅存在address类型的参数
 	if interParam.length == 1 && len(interParam.eventNameToValueByAddress[constants.EVENT_TYPE_ADDRESS]) == 1 {
-		var changeMoney *big.Int
-		var v string
-		var err error
+		//var changeMoney *big.Int
+		//var v string
+		//var err error
 		//判断address是from还是to
 		//获取交易前后金额差
 		if interParam.isErc20 {
-			for _, v := range interParam.eventNameToValueByAddress[constants.EVENT_TYPE_ADDRESS] {
-				changeMoney, err = e.GetERC20TokenBalanceChange(interParam.contractAddress, v, interParam.blockNumber)
-				if err != nil {
-					log.Fatal("Fail GetERC20TokenBalanceChange:", err)
-				}
-			}
+			//for _, v := range interParam.eventNameToValueByAddress[constants.EVENT_TYPE_ADDRESS] {
+			//changeMoney, err = e.GetERC20TokenBalanceChange(interParam.contractAddress, v, interParam.blockNumber)
+			//if err != nil {
+			//	log.Fatal("Fail GetERC20TokenBalanceChange:", err)
+			//}
+			//}
 		} else {
-			for _, v := range interParam.eventNameToValueByAddress[constants.EVENT_TYPE_ADDRESS] {
-				changeMoney, err = e.GetBalanceChange(interParam.blockNumber, v)
-				if err != nil {
-					log.Fatal("Fail GetERC20TokenBalanceChange:", err)
-				}
-			}
+			//for _, v := range interParam.eventNameToValueByAddress[constants.EVENT_TYPE_ADDRESS] {
+			//changeMoney, err = e.GetBalanceChange(interParam.blockNumber, v)
+			//if err != nil {
+			//	log.Fatal("Fail GetERC20TokenBalanceChange:", err)
+			//}
+			//}
 		}
 		//判断changeMoney是否大于0
-		if changeMoney.Cmp(big.NewInt(0)) > 0 {
-			internalTxn.ToAddr = v
-			internalTxn.FromAddr = interParam.contractAddress
-			internalTxn.ActualAmount = *changeMoney
-		} else {
-			internalTxn.FromAddr = v
-			internalTxn.ToAddr = interParam.contractAddress
-			internalTxn.ActualAmount = *changeMoney
-		}
+		//if changeMoney.Cmp(big.NewInt(0)) > 0 {
+		//	internalTxn.ToAddr = v
+		//	internalTxn.FromAddr = interParam.contractAddress
+		//	internalTxn.ActualAmount = *changeMoney
+		//} else {
+		//	internalTxn.FromAddr = v
+		//	internalTxn.ToAddr = interParam.contractAddress
+		//	internalTxn.ActualAmount = *changeMoney
+		//}
 		return
 	} else if interParam.length == 2 && len(interParam.eventNameToValueByAddress[constants.EVENT_TYPE_ADDRESS]) == 2 {
 
@@ -127,11 +128,11 @@ func (e *EthClient) getInternalTxn(interParam *InternalTxnParam, internalTxn *do
 			if len(internalTxn.FromAddr) == 0 || len(internalTxn.ToAddr) == 0 {
 				log.Fatal("Fail internalTxn.FromAddr or internalTxn.ToAddr is empty")
 			}
-			for _, v := range interParam.eventNameToValueByAddress[constants.EVENT_TYPR_UINT] {
-				//将v转成big.int类型
-				value, _ := new(big.Int).SetString(v, 10)
-				internalTxn.Amount = *value
-			}
+			//for _, v := range interParam.eventNameToValueByAddress[constants.EVENT_TYPR_UINT] {
+			//将v转成big.int类型
+			//value, _ := new(big.Int).SetString(v, 10)
+			//internalTxn.Amount = *value
+			//}
 			return
 		} else {
 
@@ -143,144 +144,156 @@ func (e *EthClient) getInternalTxn(interParam *InternalTxnParam, internalTxn *do
 
 }
 
-// ParseTransReceiptByHash 根据交易hash解析交易中的Receipt,封装成内部交易信息
-// 0x0000000000000000000000000000000000000000
-func (e *EthClient) ParseTransReceiptByHash(dbClient *sql.DB, hash common.Hash) ([]domain.InternalTxn, error) {
-	var err error
-	var abiInfo map[common.Address]AddrMap //存储abi信息与token信息
-	var resultList []domain.InternalTxn
-	//var paramInfo map[string]string
+// ParseTransReceiptByHash 根据交易hash解析交易中的log信息
+func (e *EthClient) ParseTransReceiptByHash(dbClient *sql.DB, hash string, contractAbiMap *map[common.Address][]byte) ([]domain.Logs, error) {
 	//根据交易哈希查询交易的receipt信息
-	receipt, err := e.TransactionReceipt(context.Background(), hash)
+	receipt, err := e.TransactionReceipt(context.Background(), common.HexToHash(hash))
 	if err != nil {
-		return nil, fmt.Errorf("fail get %v receipt info:%v", hash.String(), err.Error())
+		return nil, fmt.Errorf("failed to get receipt info for %v: %v", hash, err)
 	}
-	//receipt status 1表示执行成功，0表示执行失败
-	if receipt.Status == 1 && len(receipt.Logs) != 0 {
-		//交易为普通交易，遍历receipt log
-		for _, logInfo := range receipt.Logs {
-
-			var abiByte []byte
-			var name, tokenName string
-			var paramName []string
-			var paramType []string
-			var tokenDecimal int
-			//var internalTxn domain.InternalTxn
-			//根据事件参数类型分类，以参数名与参数值的键值对进行存储
-			var eventNameToValueByAddress map[string]map[string]string //type-> (name->value)参数类型[参数名]=参数值
-			logAddr := logInfo.Address                                 //获取该log所属的合约地址
-			//根据logAddr获取abi信息
-			//判断该地址信息是否已经存在，若未被记录，则先从数据库中根据合约地址查询abi信息，若未查询到则通过api查询abi信息
-			if _, ok := abiInfo[logAddr]; !ok {
-				//从数据库中查询合约的abi信息以及token name
-				abiByte, tokenName, tokenDecimal, err = db.GetAbiAndTokenByAddr(dbClient, logAddr.String())
-				if err != nil {
-					return nil, fmt.Errorf("ParseTransReceiptByHash:Fail get info by database->%s", err.Error())
-					//若该addr不是白名单地址或是abi信息不存在，通过api查询abi与token name信息并存储
-				} else if abiByte == nil {
-					contractAbiStr, err := e.GetContractAbi(logAddr.String())
-					if err != nil {
-						return nil, fmt.Errorf("ParseTransReceiptByHash:Fail get  info by api ->%s", err.Error())
-					}
-					abiByte = []byte(contractAbiStr)
-					abiInfo[logAddr] = AddrMap{
-						abi:   abiByte,
-						token: tokenName,
-					}
-					//若该地址存在于白名单中，且存在abi信息,将abi存储至abiInfo
-				} else {
-					abiInfo[logAddr] = AddrMap{
-						abi:   abiByte,
-						token: tokenName,
-					}
-				}
-			} else {
-				//若abi信息已经存在，则直接根据logAddr获得abi和token name信息
-				abiByte = abiInfo[logAddr].abi
-				tokenName = abiInfo[logAddr].token
-			}
-			//判断该交易是否为erc20交易-若token name不为空，且tokenDecimal不为0，则说明该地址为erc20合约地址，则将该交易记为erc20交易
-			if tokenName != "" && tokenDecimal != 0 {
-				//internalTxn.IsErc20 = true
-				//internalTxn.TokenDecimal = tokenDecimal
-				//internalTxn.Token = tokenName
-				//internalTxn.TokenAddress = logAddr.Hex()
-			}
-			//根据获得的abi信息，生成合约abi对象
-			contractABI, err := abi.JSON(bytes.NewReader(abiByte))
-			if err != nil {
-				return nil, fmt.Errorf("ParseTransReceiptByHash: Fail to create abi->%s", err.Error())
-			}
-			evenSig := logInfo.Topics[0] //默认topics的第一个参数为事件的签名
-			//获取事件签名，并根据事件签名和abi解析出事件
-			eventInfo, err := contractABI.EventByID(evenSig)
-			if err != nil {
-				log.Printf("ParseTransReceiptByHash:Fail to get event info by %s->%v", logInfo.Topics[0].String(), err.Error())
-				break
-			}
-			//var paramInfo = make(map[string]string)
-			topicIndex := 1
-			//遍历事件信息，解析事件参数名称和类型，以事件名（参数类型 参数名称,....）格式返回
-			name = eventInfo.RawName + "("
-			for i, input := range eventInfo.Inputs {
-				inputType := input.Type.String()
-				inputName := input.Name
-				if i == len(eventInfo.Inputs)-1 {
-					name += inputType + " " + input.Name
-				} else {
-					name += inputType + " " + input.Name + ","
-				}
-				//存储事件信息，以参数名称和类型键值对形式存储
-
-				//若事件参数被标记为indexed，参数值存在于topics数组中
-				if input.Indexed {
-					if inputType == "address" {
-						// 格式化address信息
-						cleanedHex := strings.TrimPrefix(logInfo.Topics[topicIndex].Hex(), "0x")
-						cleanedHex = strings.TrimLeft(cleanedHex, "0")
-						cleanedHex = "0x" + cleanedHex
-						//paramInfo[input.Name] = cleanedHex
-						eventNameToValueByAddress[inputType][inputName] = cleanedHex
-					} else if strings.HasPrefix(inputType, "uint") || strings.HasPrefix(inputType, "int") {
-						//paramInfo[input.Name] = logInfo.Topics[topicIndex].Big().String()
-						eventNameToValueByAddress[inputType][inputName] = logInfo.Topics[topicIndex].Big().String()
-					} else {
-						//paramInfo[input.Name] = logInfo.Topics[topicIndex].Hex()
-						eventNameToValueByAddress[inputType][inputName] = logInfo.Topics[topicIndex].Hex()
-					}
-					topicIndex++
-					//若参数未被标记为indexed，数据将会存在data中,先将事件参数的名字和类型进行存储
-				} else {
-					paramName = append(paramName, inputName)
-					paramType = append(paramType, inputType)
-				}
-			}
-			name += ")"
-			//没有被标记为indexed的参数的值则存储于log.data中，需解析出值后存储于键值对中
-			//解析data数据
-			dataInter, err := contractABI.Unpack(eventInfo.Name, logInfo.Data)
-			if err != nil {
-				return nil, fmt.Errorf("ParseTransReceiptByHash:Fail unpack data ->%s", err.Error())
-			}
-			//解析data数据，将参数名与值以键值对的形式存储到paramInfo中
-			for i, dataItem := range dataInter {
-				dataType := paramType[i]
-				dataName := paramName[i]
-				// 尝试转换数据项并检查是否成功
-				if convertedValue, ok := convertDataItem(dataItem, dataType); ok {
-					eventNameToValueByAddress[dataType][dataName] = convertedValue
-				} else {
-					log.Fatalf("Failed to convert %s type. param name is %s", dataType, dataName)
-				}
-			}
-
-			//resultList = append(resultList, domain.ReceiptInfo{
-			//	Event:     str,
-			//	ParamInfo: interReceiptInfo,
-			//})
+	//若log为空，直接返回空
+	if len(receipt.Logs) == 0 {
+		return nil, nil
+	}
+	var resultList []domain.Logs //log信息列表
+	//查询log信息
+	if receipt.Status == 1 { //receipt status 1表示执行成功，0表示执行失败
+		resultList, err = getLogsInReceipt(dbClient, receipt.Logs, contractAbiMap)
+		if err != nil {
+			return nil, fmt.Errorf("fail get logs info:%v", err)
 		}
 	}
 	return resultList, nil
+}
+func getLogsInReceipt(dbClient *sql.DB, logs []*types.Log, contractAbiMap *map[common.Address][]byte) ([]domain.Logs, error) {
+	var resultList []domain.Logs
+	//遍历receipt log
+	for _, logInfo := range logs {
+		abiByte, err := getOrLoadABI(dbClient, logInfo.Address, contractAbiMap)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get ABI info: %v", err)
+		}
+		var resultLog domain.Logs
+		//若合约未被验证，记录未被解析的log数据，并退出循环，解析下一个log
+		if string(abiByte) == constants.ABI_NO {
+			resultLog = parseNoVerifyLog(logInfo)
+		} else {
+			resultLog, err = parseVerifyLog(abiByte, logInfo)
+			if err != nil {
+				return nil, fmt.Errorf("fail parse log:%v", err.Error())
+			}
+		}
+		resultList = append(resultList, resultLog)
+	}
+	return resultList, nil
+}
+func getOrLoadABI(dbClient *sql.DB, logAddr common.Address, contractAbiMap *map[common.Address][]byte) ([]byte, error) {
+	if abiByte, ok := (*contractAbiMap)[logAddr]; ok {
+		return abiByte, nil
+	}
+
+	abiByte, err := loadABIFromDatabase(dbClient, logAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	(*contractAbiMap)[logAddr] = abiByte
+	return abiByte, nil
+}
+
+// 根据合约地址查询abi信息：1.先从数据库中根据合约地址查询abi信息2.若未查询到则通过api查询abi信息
+func loadABIFromDatabase(dbClient *sql.DB, logAddr common.Address) ([]byte, error) {
+	// 查询数据库中的合约ABI信息
+	abiByte, err := db.GetAbi(dbClient, logAddr.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ABI info from the database: %v", err)
+	}
+
+	if abiByte == nil {
+		// 通过地址查询合约的ABI信息
+		contractAbiStr, err := GetContractAbiOnEth(logAddr.String())
+		if err != nil {
+			return nil, fmt.Errorf("failed to get ABI info from the API: %v", err)
+		}
+		abiByte = []byte(contractAbiStr)
+	}
+
+	return abiByte, nil
+}
+
+// 获取未验证的合约的log信息
+func parseNoVerifyLog(logInfo *types.Log) domain.Logs {
+	var topicsInfo []domain.TopicsValStruct
+	//遍历topics数组，将数据存储于topicsInfo中
+	for i, iTopicsList := range logInfo.Topics[1:] {
+		topicsInfo = append(topicsInfo, domain.TopicsValStruct{
+			Key:   fmt.Sprintf("topic%d", i),
+			Value: iTopicsList.String(),
+		})
+	}
+	//将data解析为16进制数据，存储与topicsInfo中
+	topicsInfo = append(topicsInfo, domain.TopicsValStruct{
+		Key:   "dataHex",
+		Value: common.BytesToHash(logInfo.Data).Hex(),
+	})
+	return domain.Logs{
+		Address:   logInfo.Address.String(),
+		EventInfo: logInfo.Topics[0].String(), //topics[0]是事件签名
+		Topics:    topicsInfo,
+	}
+}
+
+// 获取已验证合约的log信息
+func parseVerifyLog(abiByte []byte, logInfo *types.Log) (domain.Logs, error) {
+	//根据获得的abi信息，生成合约abi对象
+	contractABI, err := abi.JSON(bytes.NewReader(abiByte))
+	if err != nil {
+		return domain.Logs{}, fmt.Errorf("ParseTransReceiptByHash: Fail to create abi->%s", err.Error())
+	}
+	evenSig := logInfo.Topics[0] //默认topics的第一个参数为事件的签名
+	//获取事件签名，并根据事件签名和abi解析出事件
+	eventInfo, err := contractABI.EventByID(evenSig)
+	if err != nil {
+		return domain.Logs{}, fmt.Errorf("ParseTransReceiptByHash:Fail to get event info by %s->%v", logInfo.Topics[0].String(), err.Error())
+	}
+	// 存储事件信息，以参数名称和类型键值对形式存储
+	eventNameToValue := make(map[string]string)
+	var paramName, paramType []string
+	topicIndex := 1
+
+	// 遍历事件参数
+	var nameParams []string
+	for _, input := range eventInfo.Inputs {
+		inputType := input.Type.String()
+		inputName := input.Name
+		param := fmt.Sprintf("%s %s", inputType, inputName)
+		nameParams = append(nameParams, param)
+		//若事件参数被标记为indexed，参数值存在于topics数组中
+		if input.Indexed {
+			//解析数据并将解析好的数据存储到eventName中
+			eventNameToValue[inputName] = hexToData(inputType, logInfo.Topics[topicIndex])
+			topicIndex++
+			//若参数未被标记为indexed，数据将会存在data中,先将事件参数的名字和类型进行存储
+		} else {
+			paramName = append(paramName, inputName)
+			paramType = append(paramType, inputType)
+		}
+	}
+	// 构建事件信息字符串
+	eventInfoStr := eventInfo.RawName + "(" + strings.Join(nameParams, ", ") + ")"
+	//若data不为空，则解析data数据
+	if len(logInfo.Data) >= 0 && len(paramName) > 0 && len(paramType) > 0 {
+		//解析data数据-没有被标记为indexed的参数的值则存储于log.data中，需解析出值后存储于键值对中
+		err = parseData(paramName, paramType, eventInfo.Name, logInfo.Data, contractABI, &eventNameToValue)
+		if err != nil {
+			return domain.Logs{}, fmt.Errorf("parseData: %s", err.Error())
+		}
+	}
+	return domain.Logs{
+		Address:   logInfo.Address.String(),
+		EventInfo: eventInfoStr,
+		Topics:    mapToTopicsValStruct(eventNameToValue),
+	}, nil
 }
 
 // GetRiskListOnContract 查询指定合约地址中的风险地址信息- 合约必须被验证版本

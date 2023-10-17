@@ -11,3 +11,8 @@ const (
 	ETH_USDC      = `0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48` //以太坊中的USDC合约地址
 	CHAINBASE_KEY = "2Vk6ng04Y3KTXcpE7dDnNyTeN5X"
 )
+const (
+	ES_URL      = "https://192.168.1.199:9200"
+	ES_USERNAME = "elastic"
+	ES_PWD      = "lyods123"
+)

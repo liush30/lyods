@@ -1,9 +1,8 @@
-// Package tool 根据指定的源文件路径，查询地址名单，目前有：json、xml、csv格式
+// Package list 根据指定的源文件路径，查询地址名单，目前有：json、xml、csv格式
 package list
 
 import (
 	"encoding/csv"
-	"errors"
 	"github.com/beevik/etree"
 	"github.com/buger/jsonparser"
 	"github.com/google/uuid"
@@ -13,31 +12,22 @@ import (
 	"lyods-adsTool/es"
 	"lyods-adsTool/pkg"
 	"lyods-adsTool/pkg/constants"
-	"lyods-adsTool/tool"
-	"net/http"
+	"lyods-adsTool/pkg/utils"
+	"os"
 	"regexp"
-	"strconv"
 	"time"
 )
 
 // GetAddrListByJSONOnBitcoin 根据url获取json格式的地址名单-获取address & chain
-func GetAddrListByJSONOnBitcoin(url string) error {
+func GetAddrListByJSONOnBitcoin(url string, c *es.ElasticClient) error {
 	var err error
 	//用于去除重复数据
 	temp := map[string]struct{}{}
 	//创建http请求
-	req, err := http.NewRequest(constants.HTTP_GET, url, nil)
+	resp, err := utils.SendHTTPRequest(url, constants.HTTP_GET, nil)
 	if err != nil {
-		log.Println("Create Request Error:", err.Error())
+		log.Println("Request Error:", err.Error())
 		return err
-	}
-	//发送http请求
-	resp, err := tool.CreateClient().Do(req)
-	if err != nil {
-		log.Println("Do Error:", err.Error())
-		return err
-	} else if resp.StatusCode != http.StatusOK {
-		return errors.New("status code is " + strconv.Itoa(resp.StatusCode))
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
@@ -66,7 +56,7 @@ func GetAddrListByJSONOnBitcoin(url string) error {
 		if _, ok := temp[addrStr]; !ok {
 			temp[addrStr] = struct{}{}
 			//根据address，查询该地址是否已经存在
-			isExist, err := es.IsExistById(constants.ES_ADDRESS, id)
+			isExist, err := c.IsExistById(constants.ES_ADDRESS, id)
 			if err != nil {
 				log.Fatalf("IsExistById Error :%v\n", err.Error())
 				return
@@ -81,13 +71,13 @@ func GetAddrListByJSONOnBitcoin(url string) error {
 			//判断该风险地址是否已经存在，若该地址已经存在，则更新地址来源
 			if isExist {
 				log.Printf("%s信息已存在,添加该数据来源\n", addrStr)
-				err = es.AddDsAddrSource(id, dsAddrInfo)
+				err = c.AddDsAddrSource(id, dsAddrInfo)
 				if err != nil {
 					log.Fatal("Fail add data source:", err.Error())
 					return
 				}
 			} else {
-				log.Printf("添加%s地址至风险名单中\n", addrStr)
+				//log.Printf("添加%s地址至风险名单中\n", addrStr)
 				//地址不存在，则新建
 				walletAddr := domain.WalletAddr{
 					WaAddr:      addrStr,
@@ -96,13 +86,16 @@ func GetAddrListByJSONOnBitcoin(url string) error {
 					DsAddr: []domain.AdsDataSource{
 						dsAddrInfo,
 					},
+					IsNeedTrace: true,
 				}
 				//将风险名单信息存储至风险名单中，id=地址+所在链
-				err = es.Insert(constants.ES_ADDRESS, id, walletAddr)
+				err = c.Insert(constants.ES_ADDRESS, id, walletAddr)
 				if err != nil {
 					log.Fatal("Fail inset risk address to es", err.Error())
 					return
 				}
+				//查询该地址的交易信息
+
 			}
 		}
 	}, "result")
@@ -110,25 +103,17 @@ func GetAddrListByJSONOnBitcoin(url string) error {
 }
 
 // GetAddrListOnCsv 根据url获得csv格式的地址名单-批量获取address,获取index列的数据
-func GetAddrListOnCsv(url string) error {
+func GetAddrListOnCsv(url string, c *es.ElasticClient) error {
 	var err error
 	//风险地址名单
 	//var addrList []domain.WalletAddr
 	//用于去除重复数据
 	temp := map[string]struct{}{}
 	//创建http请求
-	req, err := http.NewRequest(constants.HTTP_GET, url, nil)
+	resp, err := utils.SendHTTPRequest(url, constants.HTTP_GET, nil)
 	if err != nil {
-		log.Println("Create Request Error:", err.Error())
+		log.Println("Request Error:", err.Error())
 		return err
-	}
-	//发送http请求
-	resp, err := tool.CreateClient().Do(req)
-	if err != nil {
-		log.Println("Do Error:", err.Error())
-		return err
-	} else if resp.StatusCode != http.StatusOK {
-		return errors.New("status code is " + strconv.Itoa(resp.StatusCode))
 	}
 	defer resp.Body.Close()
 	reader := csv.NewReader(resp.Body)
@@ -146,8 +131,7 @@ func GetAddrListOnCsv(url string) error {
 			break
 		}
 		if err != nil {
-			log.Fatal(err)
-			continue
+			return err
 		}
 		addrStr := rec[0]  //获取风险地址
 		category := rec[1] //获取风险类别
@@ -156,7 +140,7 @@ func GetAddrListOnCsv(url string) error {
 		if _, ok := temp[addrStr]; !ok {
 			temp[addrStr] = struct{}{}
 			//根据address，查询该地址是否已经存在
-			isExist, err := es.IsExistById(constants.ES_ADDRESS, addrStr)
+			isExist, err := c.IsExistById(constants.ES_ADDRESS, addrStr)
 			if err != nil {
 				log.Printf("IsExistById Error :%v\n", err.Error())
 				continue
@@ -169,8 +153,8 @@ func GetAddrListOnCsv(url string) error {
 			}
 			//若该地址已经存在，则更新地址来源
 			if isExist {
-				log.Printf("%s信息已存在,添加该数据来源\n", addrStr)
-				err = es.AddDsAddrSource(addrStr, dsAddrInfo)
+				//log.Printf("%s信息已存在,添加该数据来源\n", addrStr)
+				err = c.AddDsAddrSource(addrStr, dsAddrInfo)
 				if err != nil {
 					log.Println("Fail add data source:", err.Error())
 					continue
@@ -181,12 +165,13 @@ func GetAddrListOnCsv(url string) error {
 				walletAddr := domain.WalletAddr{
 					WaAddr:      addrStr,
 					WaRiskLevel: constants.INIT_LEVEL,
-					WaChain:     "ethereum",
+					WaChain:     constants.CHAIN_ETH,
 					DsAddr: []domain.AdsDataSource{
 						dsAddrInfo,
 					},
+					IsNeedTrace: true,
 				}
-				err = es.Insert(constants.ES_ADDRESS, addrStr, walletAddr)
+				err = c.Insert(constants.ES_ADDRESS, addrStr, walletAddr)
 				if err != nil {
 					log.Println("Fail insert addr_list", err.Error())
 					continue
@@ -211,25 +196,35 @@ func GetAddrListOnCsv(url string) error {
 // XRP
 // USDC
 // -----("https://www.treasury.gov/ofac/downloads/sdn.xml", `^Digital Currency Address - ([\D]{3,16}$)
-func GetAddrListOnXmlByElement(url string) error {
+func GetAddrListOnXmlByElement(path string, c *es.ElasticClient) error {
 	var err error
-	//发送http请求
-	resp, err := tool.CreateClient().Get(url)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		log.Println("http status is :", resp.StatusCode, "Do Error:", err.Error())
-		return err
-	}
+	////发送http请求
+	//resp, err := utils.SendHTTPRequest(url, constants.HTTP_GET, nil)
+	//if err != nil {
+	//	log.Println("Request Error:", err.Error())
+	//	return err
+	//}
+	//defer resp.Body.Close()
 	//将文件读取至etree文档
-	doc := etree.NewDocument()
-	if i, err := doc.ReadFrom(resp.Body); err != nil || i <= 0 {
-		log.Fatal("error:", err, "or read file is nil")
+	//doc := etree.NewDocument()
+	//if i, err := doc.ReadFrom(resp.Body); err != nil || i <= 0 {
+	//	log.Fatal("error:", err, "or read file is nil")
+	//}
+	// 读取本地 XML 文件
+	xmlData, err := os.ReadFile(path)
+	if err != nil {
+		log.Fatalf("Error reading XML file: %s", err)
 	}
-	defer resp.Body.Close()
+	// 创建 etree 文档
+	doc := etree.NewDocument()
+	if err := doc.ReadFromBytes(xmlData); err != nil {
+		log.Fatalf("Error parsing XML data: %s", err)
+	}
 	//访问根元素
 	root := doc.SelectElement("sdnList")
 	//访问元素 sdnList->sdnEntry->idList->id->idType
 	for _, sdnEntry := range root.SelectElements("sdnEntry") {
-		var entityInfo = new(domain.Entity)
+		var entityInfo domain.Entity
 		var emailList, websiteList, phoneList []string
 		var otherList []domain.OtherInfo
 		var idInfoList []domain.ID
@@ -271,36 +266,37 @@ func GetAddrListOnXmlByElement(url string) error {
 						idInfo := domain.ID{
 							IDType:         idType,
 							IDNumber:       idNumberValue,
-							IDCountry:      id.SelectElement(constants.ID_COUNTRY).Text(),
-							ExpirationDate: id.SelectElement(constants.EXPRI_DATE).Text(),
+							IDCountry:      elementBySdn(constants.ID_COUNTRY, id),
+							ExpirationDate: elementBySdn(constants.EXPRI_DATE, id),
+							IssueDate:      elementBySdn(constants.ISSUE_DATE, id),
 						}
 						idInfoList = append(idInfoList, idInfo)
 						//数据匹配成功
 					} else {
 						//获取entity其他信息
-						getEntityInfo(sdnEntry, entityInfo)
+						getEntityInfo(sdnEntry, &entityInfo)
 						//截取数据：所在链，以及地址,存储到地址风险名单中
 						//根据货币名称获取所在链
 						chain := getChainBySdn(idType)
 						//根据address，查询该地址是否已经存在
-						isExist, err := es.IsExistById(constants.ES_ADDRESS, idNumberValue)
+						isExist, err := c.IsExistById(constants.ES_ADDRESS, idNumberValue)
 						if err != nil {
 							log.Printf("IsExistById Error :%s\n，id=%s", err.Error(), idNumberValue)
 							continue
 						}
 						//记录来源信息
 						dsAddrInfo := domain.AdsDataSource{
-							DsAddr:     url,
+							DsAddr:     constants.DSADDR_SDN,
 							DsType:     constants.DS_OFAC,
 							Illustrate: "Derived from the OFAC Sanctions List.",
 							Time:       time.Now(),
 						}
 						//若该地址已经存在，则增加地址来源
 						if isExist {
-							log.Printf("%s信息已存在,添加该数据来源\n", idNumberValue)
-							es.AddDsAddrSource(idNumberValue, dsAddrInfo)
+							//log.Printf("%s信息已存在,添加该数据来源\n", idNumberValue)
+							c.AddDsAddrSource(idNumberValue, dsAddrInfo)
 						} else {
-							log.Printf("添加%s地址信息\n", idNumberValue)
+							//log.Printf("添加%s地址信息\n", idNumberValue)
 							//地址不存在，则新建风险名单信息,并存储到es中
 							walletAddr := domain.WalletAddr{
 								WaAddr:      idNumberValue,
@@ -310,8 +306,9 @@ func GetAddrListOnXmlByElement(url string) error {
 								DsAddr: []domain.AdsDataSource{
 									dsAddrInfo,
 								},
+								IsNeedTrace: true,
 							}
-							err = es.Insert(constants.ES_ADDRESS, idNumberValue, walletAddr)
+							err = c.Insert(constants.ES_ADDRESS, idNumberValue, walletAddr)
 							if err != nil {
 								log.Fatal("Fail insert risk address:", err.Error())
 							}
@@ -327,8 +324,9 @@ func GetAddrListOnXmlByElement(url string) error {
 		entityInfo.PhoneNumber = phoneList
 		entityInfo.IDList = idInfoList
 		entityInfo.OtherInfo = otherList
+		log.Println("entityInfo:", entityInfo)
 		//存入es中
-		err = es.Insert(constants.ES_ENTITY, entityId, &entityInfo)
+		err = c.Insert(constants.ES_ENTITY, entityId, &entityInfo)
 		if err != nil {
 			log.Fatal("Fail insert risk entity:", err.Error())
 		}
@@ -348,24 +346,24 @@ func getEntityInfo(sdnEntry *etree.Element, entityInfo *domain.Entity) {
 	//获取实体名字
 	if sdnType == "Individual" {
 		entityInfo.IsIndividual = true
-		entityInfo.Name = sdnEntry.SelectElement("lastName").Text() + sdnEntry.SelectElement("firstName").Text()
+		entityInfo.Name = elementBySdn("lastName", sdnEntry) + elementBySdn("firstName", sdnEntry)
 	} else {
 		entityInfo.IsIndividual = false
-		entityInfo.Name = sdnEntry.SelectElement("lastName").Text()
+		entityInfo.Name = elementBySdn("lastName", sdnEntry)
 	}
 	//获取实体别名列表
 	if akaList := sdnEntry.SelectElement("akaList"); akaList != nil {
 		for _, aka := range akaList.SelectElements("aka") {
-			akaName = append(akaName, aka.SelectElement("lastName").Text())
+			akaName = append(akaName, elementBySdn("lastName", aka))
 		}
 	}
 	entityInfo.AkaList = akaName
 	//获取实体地址列表
 	if addressList := sdnEntry.SelectElement("addressList"); addressList != nil {
 		for _, address := range addressList.SelectElements("address") {
-			country := address.SelectElement("country").Text()
-			stateOrProvince := address.SelectElement("stateOrProvince").Text()
-			city := address.SelectElement("city").Text()
+			country := elementBySdn("country", address)
+			stateOrProvince := elementBySdn("stateOrProvince", address)
+			city := elementBySdn("city", address)
 			//获取address下的子节点信息
 			children := address.ChildElements()
 			// 遍历子节点并提取其他文本内容
@@ -450,4 +448,11 @@ func getChainBySdn(idType string) string {
 	}
 	params := flysnowRegexp.FindStringSubmatch(idType)
 	return pkg.CurrencyToChain[params[len(params)-1]]
+}
+func elementBySdn(idType string, id *etree.Element) string {
+	element := id.SelectElement(idType)
+	if element != nil {
+		return element.Text()
+	}
+	return ""
 }

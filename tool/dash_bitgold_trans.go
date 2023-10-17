@@ -7,6 +7,7 @@ import (
 	"log"
 	"lyods-adsTool/domain"
 	"lyods-adsTool/pkg/constants"
+	"lyods-adsTool/pkg/utils"
 	"net/http"
 	"strconv"
 )
@@ -18,7 +19,7 @@ func GetTransOnDashOrBitGold(chainType, pageNum uint, addr string) (domain.Trans
 	//根据指定地址以及page Num查询交易信息
 	//获取url
 	url := getUrl(chainType, pageNum, addr)
-	resp, err := CreateClient().Get(url)
+	resp, err := utils.CreateClient().Get(url)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		log.Println("http status is :", resp.StatusCode, "Do Error:", err.Error())
 		return domain.TransactionDashOrBGold{}, err

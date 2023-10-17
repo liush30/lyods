@@ -7,6 +7,7 @@ import (
 	"lyods-adsTool/config"
 	"lyods-adsTool/domain"
 	"lyods-adsTool/pkg/constants"
+	"lyods-adsTool/pkg/utils"
 	"net/http"
 )
 
@@ -54,7 +55,7 @@ func GetTransInfoOnVerge(txId string) (domain.TransactionOnVerge, error) {
 	//根据地址查询出交易记录，根据交易类型，查询转出交易记录
 	var err error
 	//根据addr去查询地址的交易记录
-	resp, err := CreateClient().Get(getTransInfoUrl(txId))
+	resp, err := utils.CreateClient().Get(getTransInfoUrl(txId))
 	if err != nil || resp.StatusCode != http.StatusOK {
 		log.Println("http status is :", resp.StatusCode, "Do Error:", err.Error())
 		return domain.TransactionOnVerge{}, err

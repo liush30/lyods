@@ -10,7 +10,7 @@ import (
 )
 
 // AddDsAddrSource 增加指定风险地址的数据地址来源
-func AddDsAddrSource(id string, addrSource domain.AdsDataSource) error {
+func (c *ElasticClient) AddDsAddrSource(id string, addrSource domain.AdsDataSource) error {
 	var err error
 	updateData := map[string]any{
 		"source": `ctx._source.adsDataSource.add(params.adsDataSource)`,
@@ -20,7 +20,7 @@ func AddDsAddrSource(id string, addrSource domain.AdsDataSource) error {
 	}
 	req := update.NewRequest()
 	req.Script = updateData
-	_, err = ElasticClient.Update(constants.ES_ADDRESS, id).Request(req).Do(context.Background())
+	_, err = c.Update(constants.ES_ADDRESS, id).Request(req).Do(context.Background())
 	if err != nil {
 		log.Printf("AddDsAddrSource:Elastic 更新%s失败：%v\n", id, err.Error())
 		return err

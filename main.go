@@ -122,10 +122,10 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"lyods-adsTool/domain/db"
-	"lyods-adsTool/services/list"
+	"lyods-adsTool/domain"
+	"lyods-adsTool/pre"
 
-	//_ "github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql"
 	"log"
 	"lyods-adsTool/config"
 	"lyods-adsTool/pkg/constants"
@@ -161,10 +161,34 @@ func createEthClient() *ethclient.Client {
 	return client
 }
 func main() {
-	err := list.GetAddrListByJSONOnBitcoin("https://data.opensanctions.org/datasets/20230927/ransomwhere/source.json")
+	//err := list.GetAddrListByJSONOnBitcoin("https://data.opensanctions.org/datasets/20230927/ransomwhere/source.json")
+	//if err != nil {
+	//	fmt.Println("出错啦", err.Error())
+	//}
+	//list, err := ethereum.GetTraceTransaction("0x2d25001f57fe2c695771bb3a52a3904a153d0265ec7691bb7fe01e1c748a36a2")
+	//if err != nil {
+	//	log.Println("出错了")
+	//	return
+	//}
+	//log.Println(list)
+	//hash := common.HexToHash("0xe2505d6c07482d284fbbd5a25b346f6dbec03e598ae3b676deb26e7db6e9ed4a")
+	//receipt, err := createEthClient().TransactionReceipt(context.Background(), hash)
+	//if err != nil {
+	//	log.Println("出错啦", err.Error())
+	//	return
+	//}
+	//for _, v := range receipt.Logs[0].Topics {
+	//	log.Println(v.Hex())
+	//	log.Println("0x" + v.Hex()[len(v.Hex())-40:])
+	//	log.Println(strings.EqualFold("0xa42303EE9B2eC1DB7E2a86Ed6C24AF7E49E9e8B9", "0x"+v.Hex()[len(v.Hex())-40:]))
+	//	log.Println(utils.ConvertAddressEth(v), "0x"+v.Hex()[len(v.Hex())-40:])
+	//}
+	err := pre.GetContractAddressToDb(`D:\Code\GoProjec\lyods-adsTool\pre\file\erc20.csv`)
 	if err != nil {
-		fmt.Println("出错啦", err.Error())
+		fmt.Println("出错了:", err)
 	}
+	//                        0x4d29360c2F7Cc54b8d8A28CB4f29343df867748b
+	//0x000000000000000000000000a42303ee9b2ec1db7e2a86ed6c24af7e49e9e8b9
 	//contractAddress := common.HexToAddress("0x4Fabb145d64652a948d72533023f6E7A623C7C53")
 	//code, err := createEthClient().CodeAt(context.Background(), contractAddress, nil)
 	//if err != nil {
@@ -556,7 +580,7 @@ func main() {
 }
 
 // 添加信息
-func addWhitelistAddr(db *sql.DB, addr db.WhitelistAddr) error {
+func addWhitelistAddr(db *sql.DB, addr domain.WhitelistAddr) error {
 	stmt, err := db.Prepare("INSERT INTO T_WHITELIST_ADDR (TWAR_KEY, CID, TW_ADDR, TW_CHAIN, TW_TYPE, ADD_TYPE, ADDR_ILL, ADDR_SOURCE, TAG_KEY,TOKEN_NAME, ABI,PROXY_ADDR,WEBSITE,CREATOR_ID, CREATE_DATE, MODIFIER_ID, LAST_MODIFY_DATE, VERSION) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?)")
 	if err != nil {
 		return err

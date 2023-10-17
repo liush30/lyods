@@ -2,37 +2,34 @@ package ethereum
 
 import (
 	"lyods-adsTool/domain"
-	"lyods-adsTool/pkg/constants"
-	"math/big"
-	"strings"
 )
 
 // IsDepositEvent 判断是否为传统Deposit事件
 // Deposit (index_topic_1 address sender, uint256 value)
 func IsDepositEvent(interParam *InternalTxnParam, txList *[]domain.InternalTxn) bool {
-	var internalTxn domain.InternalTxn
-	if !strings.EqualFold(interParam.eventName, constants.EVENT_NAME_DEPOSIT) {
-		return false
-	}
-	_, uintOk := interParam.eventNameToValueByAddress[constants.EVENT_TYPR_UINT]
-	_, addressOk := interParam.eventNameToValueByAddress[constants.EVENT_TYPE_ADDRESS]
-	if interParam.length == 2 && addressOk && uintOk {
-		for _, v := range interParam.eventNameToValueByAddress[constants.EVENT_TYPE_ADDRESS] {
-			internalTxn.FromAddr = v
-		}
-		for _, v := range interParam.eventNameToValueByAddress[constants.EVENT_TYPR_UINT] {
-			//将v转成big.int类型
-			value, _ := new(big.Int).SetString(v, 10)
-			internalTxn.Amount = *value
-		}
-		internalTxn.ToAddr = interParam.contractAddress
-		internalTxn.ContractAddr = interParam.contractAddress
-		internalTxn.IsErc20 = interParam.isErc20
-		internalTxn.TokenDecimal = interParam.tokenDecimal
-		internalTxn.Token = interParam.token
-		*txList = append(*txList, internalTxn)
-		return true
-	}
+	//var internalTxn domain.InternalTxn
+	//if !strings.EqualFold(interParam.eventName, constants.EVENT_NAME_DEPOSIT) {
+	//	return false
+	//}
+	//_, uintOk := interParam.eventNameToValueByAddress[constants.EVENT_TYPR_UINT]
+	//_, addressOk := interParam.eventNameToValueByAddress[constants.EVENT_TYPE_ADDRESS]
+	//if interParam.length == 2 && addressOk && uintOk {
+	//	for _, v := range interParam.eventNameToValueByAddress[constants.EVENT_TYPE_ADDRESS] {
+	//		internalTxn.FromAddr = v
+	//	}
+	//	for _, v := range interParam.eventNameToValueByAddress[constants.EVENT_TYPR_UINT] {
+	//		//将v转成big.int类型
+	//		value, _ := new(big.Int).SetString(v, 10)
+	//		internalTxn.Amount = *value
+	//	}
+	//	internalTxn.ToAddr = interParam.contractAddress
+	//	internalTxn.ContractAddr = interParam.contractAddress
+	//	internalTxn.IsErc20 = interParam.isErc20
+	//	internalTxn.TokenDecimal = interParam.tokenDecimal
+	//	internalTxn.Token = interParam.token
+	//	*txList = append(*txList, internalTxn)
+	//	return true
+	//}
 	return false
 }
 
@@ -80,30 +77,30 @@ func IsWithdrawalEvent(interParam *InternalTxnParam, txList *[]domain.InternalTx
 // IsTransferEvent 判断是否为传统Transfer事件
 // Transfer(address indexed from, address indexed to, uint256 value/amount/money)
 func IsTransferEvent(interParam *InternalTxnParam, txList *[]domain.InternalTxn) bool {
-	var internalTxn domain.InternalTxn
-	//判断eventName是否为Transfer
-	if !strings.EqualFold(interParam.eventName, constants.EVENT_NAME_TRANSFER) {
-		return false
-	}
-	fromValue, fromOk := interParam.eventNameToValueByAddress[constants.EVENT_TYPE_ADDRESS][constants.EVENT_PARAM_FROM]
-	toValue, toOk := interParam.eventNameToValueByAddress[constants.EVENT_TYPE_ADDRESS][constants.EVENT_PARAM_TO]
-	_, uintOk := interParam.eventNameToValueByAddress[constants.EVENT_TYPR_UINT]
-	//判断是否存在(address indexed from, address indexed to, uint256 value)结构
-	if interParam.length == 3 && fromOk && toOk && uintOk {
-		for _, v := range interParam.eventNameToValueByAddress[constants.EVENT_TYPR_UINT] {
-			//将v转成big.int类型
-			value, _ := new(big.Int).SetString(v, 10)
-			internalTxn.Amount = *value
-		}
-		internalTxn.FromAddr = fromValue
-		internalTxn.ToAddr = toValue
-		internalTxn.ContractAddr = interParam.contractAddress
-		internalTxn.IsErc20 = interParam.isErc20
-		internalTxn.TokenDecimal = interParam.tokenDecimal
-		internalTxn.Token = interParam.token
-		*txList = append(*txList, internalTxn)
-		return true
-	}
+	//var internalTxn domain.InternalTxn
+	////判断eventName是否为Transfer
+	//if !strings.EqualFold(interParam.eventName, constants.EVENT_NAME_TRANSFER) {
+	//	return false
+	//}
+	//fromValue, fromOk := interParam.eventNameToValueByAddress[constants.EVENT_TYPE_ADDRESS][constants.EVENT_PARAM_FROM]
+	//toValue, toOk := interParam.eventNameToValueByAddress[constants.EVENT_TYPE_ADDRESS][constants.EVENT_PARAM_TO]
+	//_, uintOk := interParam.eventNameToValueByAddress[constants.EVENT_TYPR_UINT]
+	////判断是否存在(address indexed from, address indexed to, uint256 value)结构
+	//if interParam.length == 3 && fromOk && toOk && uintOk {
+	//	for _, v := range interParam.eventNameToValueByAddress[constants.EVENT_TYPR_UINT] {
+	//		//将v转成big.int类型
+	//		value, _ := new(big.Int).SetString(v, 10)
+	//		internalTxn.Amount = *value
+	//	}
+	//	internalTxn.FromAddr = fromValue
+	//	internalTxn.ToAddr = toValue
+	//	internalTxn.ContractAddr = interParam.contractAddress
+	//	internalTxn.IsErc20 = interParam.isErc20
+	//	internalTxn.TokenDecimal = interParam.tokenDecimal
+	//	internalTxn.Token = interParam.token
+	//	*txList = append(*txList, internalTxn)
+	//	return true
+	//}
 	return false
 }
 

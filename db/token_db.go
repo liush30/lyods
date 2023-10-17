@@ -2,20 +2,25 @@ package db
 
 import (
 	"database/sql"
-	"log"
-	"lyods-adsTool/domain/db"
+	"fmt"
+	"lyods-adsTool/domain"
 )
 
 // AddToken 添加数据到表
-func AddToken(db *sql.DB, token db.Token) {
+func AddToken(db *sql.DB, token domain.Token) (int64, error) {
 	insertSQL := `
-        INSERT INTO t_token (TOKEN_KEY, CONTRACT_ADDRESS, SYMBOL, DECIMALS, BLOCKCHAIN, ABI,PROXY_ADDR, CREATE_DATE)
+        INSERT INTO t_token (TOKEN_KEY, CONTRACT_ADDRESS, SYMBOL, DECIMALS, BLOCKCHAIN, CREATE_DATE,LAST_MODIFY_DATE)
         VALUES (?, ?, ?, ?, ?, ?, ?)
     `
-	_, err := db.Exec(insertSQL, token.TokenKey, token.ContractAddress, token.Symbol, token.Decimals, token.Blockchain, token.Abi, token.ProxyAddr, token.CreateDate)
+	result, err := db.Exec(insertSQL, token.TokenKey, token.ContractAddress, token.Symbol, token.Decimals, token.Blockchain, token.CreateDate, token.LastModifyDate)
 	if err != nil {
-		log.Fatal(err)
+		return 0, fmt.Errorf("insert to database error :%v\n", err.Error())
 	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("get rows affected error :%v\n", err.Error())
+	}
+	return count, nil
 }
 
 // 判断合约地址是否为erc20合约地址

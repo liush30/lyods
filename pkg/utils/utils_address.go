@@ -1,10 +1,7 @@
 package utils
 
 import (
-	"context"
 	"github.com/ethereum/go-ethereum/common"
-	"log"
-	"lyods-adsTool/tool"
 	"regexp"
 	"strings"
 )
@@ -43,19 +40,22 @@ func IsValidAddress(address string) bool {
 	re := regexp.MustCompile("^0x[0-9a-fA-F]{40}$")
 	return re.MatchString(address)
 }
+func ConvertAddressEth(hash common.Hash) string {
+	return "0x" + hash.Hex()[len(hash.Hex())-40:]
+}
 
 // IsContractAddress 判断地址是否为合约地址-以太坊
-func IsContractAddress(addressStr string) (bool, error) {
-	var address common.Address
-	//验证地址是否合法
-	if IsValidAddress(addressStr) {
-		address = common.HexToAddress(addressStr)
-	}
-	bytecode, err := tool.EthClient.CodeAt(context.Background(), address, nil)
-	if err != nil {
-		log.Fatal("获取字节码失败:", err)
-		return false, err
-	}
-	//bytecode>0，说明是合约地址
-	return len(bytecode) > 0, nil
-}
+//func IsContractAddress(addressStr string) (bool, error) {
+//	var address common.Address
+//	//验证地址是否合法
+//	if IsValidAddress(addressStr) {
+//		address = common.HexToAddress(addressStr)
+//	}
+//	bytecode, err := tool.EthClient.CodeAt(context.Background(), address, nil)
+//	if err != nil {
+//		log.Fatal("获取字节码失败:", err)
+//		return false, err
+//	}
+//	//bytecode>0，说明是合约地址
+//	return len(bytecode) > 0, nil
+//}

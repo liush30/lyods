@@ -2,7 +2,7 @@ package constants
 
 const (
 	HTTP_GET  = "get"
-	HTTP_POST = "post"
+	HTTP_POST = "POST"
 )
 const (
 	CHAIN_DASH     = iota //所在链-DASH
@@ -12,6 +12,9 @@ const (
 	CHAIN_ARBITRUM        //所在链-ARBITRUM
 	CHAIN_BITCOIN
 )
+const (
+	CHAIN_ETH = "ETH"
+)
 
 // 风险名单来源类型
 const (
@@ -20,6 +23,9 @@ const (
 	DS_UNISWAP       = "uniswap"       //来源类型-UNISWAP
 	DS_CUSTOMIZE     = "customize"     //来源类型-平台自定义
 	DS_WITH_RISK     = "with_risk"     //来源类型-涉及与风险地址交易
+)
+const (
+	DSADDR_SDN = "https://www.treasury.gov/ofac/downloads/sdn.xml"
 )
 
 // 初始化数据
@@ -37,4 +43,7 @@ const (
 	RPC_ID           = 1
 	RPC_VERSION      = "2.0"
 	RPC_METHOD_TRACE = "trace_transaction"
+)
+const (
+	ABI_NO = "Contract source code not verified"
 )

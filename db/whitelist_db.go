@@ -4,11 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"lyods-adsTool/domain/db"
+	"lyods-adsTool/domain"
 )
 
 func GetDb() *sql.DB {
-	db, err := sql.Open("mysql", "username:password@tcp(localhost:3306)/database")
+	db, err := sql.Open("mysql", "root:lyods@123@tcp(192.168.1.212:3306)/sit_nf_vaw")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func GetDb() *sql.DB {
 //}
 
 // BulkAddWhitelistAddr 批量增加白名单信息
-func BulkAddWhitelistAddr(db *sql.DB, addrs []db.WhitelistAddr) error {
+func BulkAddWhitelistAddr(db *sql.DB, addrs []domain.WhitelistAddr) error {
 	// 开始事务
 	tx, err := db.Begin()
 	if err != nil {
@@ -67,29 +67,49 @@ func BulkAddWhitelistAddr(db *sql.DB, addrs []db.WhitelistAddr) error {
 	return nil
 }
 
+// // GetAbiAndTokenByAddr 根据指定的合约地址查询abi信息以及token,token decimal信息
+//
+//	func GetAbiAndTokenByAddr(db *sql.DB, addr string) ([]byte, string, int, error) {
+//		query := "SELECT ABI,TOKEN_NAME,TOKEN_DECIMAL FROM T_WHITELIST_ADDR WHERE TW_ADDR = ?"
+//		row := db.QueryRow(query, addr)
+//		// 解析查询结果
+//		var abi []byte
+//		var tokenName string
+//		var tokenDecimal int
+//		err := row.Scan(&abi, &tokenName, &tokenDecimal)
+//		if err != nil {
+//			//若指定地址的信息不存在，返回空
+//			if err == sql.ErrNoRows {
+//				log.Printf("GetAbiInfoByAddr: TW_ADDR %s does not exist or abi not exist", addr)
+//				return nil, "", 0, nil
+//			} else {
+//				return nil, tokenName, tokenDecimal, fmt.Errorf("GetAbiInfoByAddr:Failed to retrieve ABI-> %v", err.Error())
+//			}
+//		}
+//		return abi, tokenName, tokenDecimal, nil
+//	}
+//
 // GetAbiAndTokenByAddr 根据指定的合约地址查询abi信息以及token,token decimal信息
-func GetAbiAndTokenByAddr(db *sql.DB, addr string) ([]byte, string, int, error) {
-	query := "SELECT ABI,TOKEN_NAME,TOKEN_DECIMAL FROM T_WHITELIST_ADDR WHERE TW_ADDR = ?"
+func GetAbi(db *sql.DB, addr string) ([]byte, error) {
+	query := "SELECT ABI FROM T_WHITELIST_ADDR WHERE TW_ADDR = ?"
 	row := db.QueryRow(query, addr)
 	// 解析查询结果
 	var abi []byte
-	var tokenName string
-	var tokenDecimal int
-	err := row.Scan(&abi, &tokenName, &tokenDecimal)
+	err := row.Scan(&abi)
 	if err != nil {
 		//若指定地址的信息不存在，返回空
 		if err == sql.ErrNoRows {
 			log.Printf("GetAbiInfoByAddr: TW_ADDR %s does not exist or abi not exist", addr)
-			return nil, "", 0, nil
+			return nil, nil
 		} else {
-			return nil, tokenName, tokenDecimal, fmt.Errorf("GetAbiInfoByAddr:Failed to retrieve ABI-> %v", err.Error())
+			return nil, fmt.Errorf("GetAbiInfoByAddr:Failed to retrieve ABI-> %v", err.Error())
 		}
 	}
-	return abi, tokenName, tokenDecimal, nil
+	return abi, nil
 }
 
 // AddWhitelistAddr 添加白名单信息
-func AddWhitelistAddr(db *sql.DB, addr db.WhitelistAddr) error {
+func AddWhitelistAddr(db *sql.DB, addr domain.WhitelistAddr) error {
 	stmt, err := db.Prepare("INSERT INTO T_WHITELIST_ADDR (TWAR_KEY, CID, TW_ADDR, TW_CHAIN, TW_TYPE, ADD_TYPE, ADDR_ILL, ADDR_SOURCE, TAG_KEY, CREATOR_ID, CREATE_DATE, MODIFIER_ID, LAST_MODIFY_DATE, VERSION) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return err
@@ -105,7 +125,7 @@ func AddWhitelistAddr(db *sql.DB, addr db.WhitelistAddr) error {
 }
 
 // UpdateWhitelistAddr 修改白名单地址信息
-func UpdateWhitelistAddr(db *sql.DB, addr db.WhitelistAddr) error {
+func UpdateWhitelistAddr(db *sql.DB, addr domain.WhitelistAddr) error {
 	stmt, err := db.Prepare("UPDATE T_WHITELIST_ADDR SET TW_ADDR = ?, TW_CHAIN = ?, TW_TYPE = ?, ADD_TYPE = ?, ADDR_ILL = ?, ADDR_SOURCE = ?, MODIFIER_ID = ?, LAST_MODIFY_DATE = ?, VERSION = ? WHERE TWAR_KEY = ?")
 	if err != nil {
 		return err

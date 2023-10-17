@@ -9,11 +9,6 @@ import (
 	"math/big"
 )
 
-type AddrMap struct {
-	abi   []byte //abi信息
-	token string //token name
-}
-
 // InternalTxnParam InternalTxn解析参数
 type InternalTxnParam struct {
 	eventName                 string                       //事件名称

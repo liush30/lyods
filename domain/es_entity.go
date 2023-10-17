@@ -22,6 +22,7 @@ type ID struct {
 	IDNumber       string `json:"idNumber"` //
 	IDCountry      string `json:"idCountry"`
 	ExpirationDate string `json:"expirationDate"`
+	IssueDate      string `json:"issueDate"` //签发
 }
 
 type OtherInfo struct {
