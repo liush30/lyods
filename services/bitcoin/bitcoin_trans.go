@@ -3,36 +3,50 @@
 package bitcoin
 
 import (
+	"errors"
+	"fmt"
 	"github.com/buger/jsonparser"
 	"io"
 	"log"
 	"lyods-adsTool/domain"
+	"lyods-adsTool/es"
 	"lyods-adsTool/pkg/constants"
 	"lyods-adsTool/pkg/utils"
 	"math/big"
+	"net/http"
 	"strconv"
 )
 
-func GetTxListOnBTC(addr string) ([]domain.EsTrans, error) {
+func GetTxListOnBTC(c *es.ElasticClient, addr string) ([]domain.EsTrans, error) {
+	//随机休眠几秒
+	utils.RandomSleep()
 	var err error
 	var transList []domain.EsTrans
 	//获得url-获取到指定账户的所有交易信息url
 	url := getUrlToBtcTrans(addr)
 	//发送http请求-根据url
-	resp, err := utils.SendHTTPRequest(url, constants.HTTP_GET, nil)
+	client := utils.CreateClient()
+	resp, err := client.Get(url)
 	if err != nil {
-		log.Println("Request Error:", err.Error())
 		return nil, err
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, errors.New("status code is " + strconv.Itoa(resp.StatusCode))
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal("Io Read Error:", err)
-		return nil, err
+		return nil, fmt.Errorf("read Body Error:%v", err)
 	}
 	//遍历该地址的每一条交易信息，并存储于transList中
 	_, err = jsonparser.ArrayEach(body, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-		transList = append(transList, processTransaction(value, addr))
+		trans := processTransaction(value, addr)
+		transList = append(transList, trans)
+		//将交易记录存储到es中
+		err = c.Insert(constants.ES_TRANSACTION, trans.Hash, trans)
+		if err != nil {
+			log.Println("Insert Transaction Error:", err.Error())
+			return
+		}
 	}, "txs")
 	if err != nil {
 		log.Println("ArrayEach Txs:", err.Error())
@@ -53,7 +67,7 @@ func processInputs(inputValue []byte) domain.InputsTrans {
 	utils.IsErrorFloat(err, "Fail get input addr")
 	inputSpent, err := jsonparser.GetBoolean(inputValue, "prev_out", "spent")
 	utils.IsError(err, "Fail get input spent")
-	inputTxIndex, err := jsonparser.GetString(inputValue, "prev_out", "tx_index")
+	inputTxIndex, _, _, err := jsonparser.Get(inputValue, "prev_out", "tx_index")
 	utils.IsError(err, "Fail get input tx_index")
 	inputValueVal, _, _, err := jsonparser.Get(inputValue, "prev_out", "value")
 	utils.IsErrorFloat(err, "Fail get input value")
@@ -64,8 +78,8 @@ func processInputs(inputValue []byte) domain.InputsTrans {
 		Script:   inputScript,
 		Addr:     inputAddr,
 		Spent:    inputSpent,
-		TxIndex:  inputTxIndex,
-		Value:    *result.SetBytes(inputValueVal),
+		TxIndex:  string(inputTxIndex),
+		Value:    result.SetBytes(inputValueVal).Int64(),
 	}
 	//将单个inputs信息存储于inputs list中
 	//inputTransList = append(inputTransList, inputsTrans)
@@ -88,7 +102,7 @@ func processOut(outValue []byte) domain.OutTrans {
 	var result big.Int
 	return domain.OutTrans{
 		Spent:   outSpent,
-		Value:   *result.SetBytes(outValueVal),
+		Value:   result.SetBytes(outValueVal).Int64(),
 		TxIndex: string(outTxIndex),
 		Script:  outScript,
 		Addr:    outAddr,

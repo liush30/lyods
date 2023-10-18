@@ -14,14 +14,21 @@ import (
 	"lyods-adsTool/domain"
 	"lyods-adsTool/pkg/constants"
 	"math/big"
-	"net/http"
 	"strings"
 )
 
 // EthClient ethereum查询风险账号相关操作
 type EthClient struct {
 	*ethclient.Client
-	MClient *http.Client
+}
+
+func CreateEthClient() *ethclient.Client {
+	client, err := ethclient.Dial(constants.URL_INFRUA)
+	if err != nil {
+		log.Fatal("连接失败:", err)
+		return nil
+	}
+	return client
 }
 
 // getInternalTxn 根据事件信息进行解析，存储到InternalTxn结构体中

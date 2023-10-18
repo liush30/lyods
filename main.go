@@ -152,7 +152,6 @@ func createClient() *http.Client {
 	return client
 }
 func createEthClient() *ethclient.Client {
-	//连接infura网关
 	client, err := ethclient.Dial(constants.URL_INFRUA)
 	if err != nil {
 		log.Fatal("连接失败:", err)

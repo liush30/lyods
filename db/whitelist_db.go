@@ -7,14 +7,6 @@ import (
 	"lyods-adsTool/domain"
 )
 
-func GetDb() *sql.DB {
-	db, err := sql.Open("mysql", "root:lyods@123@tcp(192.168.1.212:3306)/sit_nf_vaw")
-	if err != nil {
-		log.Fatal(err)
-	}
-	return db
-}
-
 // GetEventBySign 根据事件签名查询事件信息
 //func GetEventBySign(db *sql.DB, sign string) (domain.EventInfo, error) {
 //	// 构建查询语句

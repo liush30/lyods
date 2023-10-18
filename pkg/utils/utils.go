@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"math/big"
+	"math/rand"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // HexToBigInt 将16进制字符串转换为big.Int
@@ -46,4 +48,10 @@ func JoinInt64SliceToString(arr []int64, delimiter string) string {
 		strArr[i] = strconv.FormatInt(num, 10)
 	}
 	return strings.Join(strArr, delimiter)
+}
+
+func RandomSleep() {
+	// 生成一个1到5之间的随机数，代表休眠的秒数
+	randomSleepSeconds := rand.Intn(5) + 1
+	time.Sleep(time.Duration(randomSleepSeconds) * time.Second)
 }

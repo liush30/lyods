@@ -13,6 +13,7 @@ import (
 	"lyods-adsTool/pkg"
 	"lyods-adsTool/pkg/constants"
 	"lyods-adsTool/pkg/utils"
+	"lyods-adsTool/services/bitcoin"
 	"os"
 	"regexp"
 	"time"
@@ -26,7 +27,7 @@ func GetAddrListByJSONOnBitcoin(url string, c *es.ElasticClient) error {
 	//创建http请求
 	resp, err := utils.SendHTTPRequest(url, constants.HTTP_GET, nil)
 	if err != nil {
-		log.Println("Request Error:", err.Error())
+		log.Println("GetAddrListByJSONOnBitcoin Request Error:", err.Error())
 		return err
 	}
 	defer resp.Body.Close()
@@ -95,7 +96,11 @@ func GetAddrListByJSONOnBitcoin(url string, c *es.ElasticClient) error {
 					return
 				}
 				//查询该地址的交易信息
-
+				_, err := bitcoin.GetTxListOnBTC(c, addrStr)
+				if err != nil {
+					log.Fatal("Fail get tx list on btc", err.Error())
+					return
+				}
 			}
 		}
 	}, "result")
@@ -225,6 +230,7 @@ func GetAddrListOnXmlByElement(path string, c *es.ElasticClient) error {
 	//访问元素 sdnList->sdnEntry->idList->id->idType
 	for _, sdnEntry := range root.SelectElements("sdnEntry") {
 		var entityInfo domain.Entity
+		var isCurrency bool
 		var emailList, websiteList, phoneList []string
 		var otherList []domain.OtherInfo
 		var idInfoList []domain.ID
@@ -256,7 +262,7 @@ func GetAddrListOnXmlByElement(path string, c *es.ElasticClient) error {
 					otherList = append(otherList, otherInfo)
 				} else {
 					//匹配字符串,判断是否为数据地址信息
-					isCurrency, err := regexp.MatchString(constants.CONDITION, idType)
+					isCurrency, err = regexp.MatchString(constants.CONDITION, idType)
 					if err != nil {
 						log.Fatal("字符串匹配失败，MatchString Error:", err.Error())
 						return err
@@ -318,17 +324,18 @@ func GetAddrListOnXmlByElement(path string, c *es.ElasticClient) error {
 			}
 			//get name info
 		}
-		//存储entity信息
-		entityInfo.Email = emailList
-		entityInfo.Website = websiteList
-		entityInfo.PhoneNumber = phoneList
-		entityInfo.IDList = idInfoList
-		entityInfo.OtherInfo = otherList
-		log.Println("entityInfo:", entityInfo)
-		//存入es中
-		err = c.Insert(constants.ES_ENTITY, entityId, &entityInfo)
-		if err != nil {
-			log.Fatal("Fail insert risk entity:", err.Error())
+		if isCurrency {
+			//存储entity信息
+			entityInfo.Email = emailList
+			entityInfo.Website = websiteList
+			entityInfo.PhoneNumber = phoneList
+			entityInfo.IDList = idInfoList
+			entityInfo.OtherInfo = otherList
+			//存入es中
+			err = c.Insert(constants.ES_ENTITY, entityId, &entityInfo)
+			if err != nil {
+				log.Fatal("Fail insert risk entity:", err.Error())
+			}
 		}
 	}
 	return nil

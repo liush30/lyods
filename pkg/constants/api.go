@@ -24,3 +24,8 @@ const (
 	URL_INFRUA    = "https://eth-mainnet.g.alchemy.com/v2/THcL8Tk-e_GH4Yjagko7-zOMqRGnk2SL"
 	URL_CHAINBASE = "https://ethereum-mainnet.s.chainbase.online/v1/"
 )
+
+// bitcoin
+const (
+	REQUEST_BTC_BLOCK = "https://chain.api.btc.com/v3/block/latest"
+)
