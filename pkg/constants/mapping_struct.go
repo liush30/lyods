@@ -76,6 +76,20 @@ const ADDR_MAPPING = `
                         "type":"keyword"
                     }
                 }
+            },
+            "riskChgHistory":{
+                "type":"nested",
+                "properties":{
+                    "dateOfBirth":{
+                        "type":"date"
+                    },
+                    "riskLevel":{
+                        "type":"short"
+                    },
+                    "description":{
+                        "type":"text"
+                    }
+                }
             }
         }
     }
@@ -85,194 +99,218 @@ const ADDR_MAPPING = `
 // TRANS_MAPPING 交易映射
 const TRANS_MAPPING = `
 {
-  "mappings": {
-    "properties": {
-      "hash": {
-        "type": "keyword"
-      },
-      "address": {
-        "type": "keyword"
-      },
-      "size": {
-        "type": "long"
-      },
-      "weight": {
-        "type": "long"
-      },
-      "gasUsed": {
-        "type": "text"
-      },
-      "isError": {
-        "type": "text"
-      },
-      "errCode": {
-        "type": "text"
-      },
-      "contractAddress": {
-        "type": "keyword"
-      },
-      "functionName": {
-        "type": "keyword"
-      },
-      "methodId": {
-        "type": "keyword"
-      },
-      "traceId": {
-        "type": "text"
-      },
-      "confirmations": {
-        "type": "text"
-      },
-      "cumulativeGasUsed": {
-        "type": "text"
-      },
-      "gasPrice": {
-        "type": "text"
-      },
-      "lockTime": {
-        "type": "long"
-      },
-      "txIndex": {
-        "type": "keyword"
-      },
-      "doubleSpend": {
-        "type": "boolean"
-      },
-      "time": {
-        "type": "long"
-      },
-      "blockHeight": {
-        "type": "text"
-      },
-      "blockHash": {
-        "type": "text"
-      },
-      "value": {
-        "type": "long"
-      },
-      "inputs": {
-        "type": "nested",
-        "properties": {
-          "sequence": {
-            "type": "long"
-          },
-          "witness": {
-            "type": "text"
-          },
-          "script": {
-            "type": "text"
-          },
-          "addr": {
-            "type": "keyword"
-          },
-          "spent": {
-            "type": "boolean"
-          },
-          "txIndex": {
-            "type": "text"
-          },
-          "value": {
-            "type": "long"
-          }
-        }
-      },
-      "out": {
-        "type": "nested",
-        "properties": {
-          "spent": {
-            "type": "boolean"
-          },
-          "value": {
-            "type": "long"
-          },
-          "n": {
-            "type": "long"
-          },
-          "txIndex": {
-            "type": "text"
-          },
-          "script": {
-            "type": "text"
-          },
-          "addr": {
-            "type": "keyword"
-          }
-        }
-      },
-      "internalTx": {
-        "type": "nested",
-        "properties": {
-          "id": {
-            "type": "keyword"
-          },
-          "traceAddress": {
-            "type": "text"
-          },
-          "fromAddr": {
-            "type": "keyword"
-          },
-          "toAddr": {
-            "type": "keyword"
-          },
-          "inputTx": {
-            "type": "text"
-          },
-          "outputTx": {
-            "type": "text"
-          },
-          "value": {
-            "type": "long"
-          },
-          "subTraces": {
-            "type": "long"
-          },
-          "callType": {
-            "type": "keyword"
-          }
-        }
-      },
-      "logs": {
-        "type": "nested",
-        "properties": {
-          "address": {
-            "type": "keyword"
-          },
-          "eventInfo": {
-            "type": "text"
-          },
-          "topics": {
-            "type": "nested",
-            "properties": {
-              "key": {
-                "type": "keyword"
-              },
-              "value": {
-                "type": "keyword"
-              }
+    "mappings":{
+        "properties":{
+            "hash":{
+                "type":"keyword"
+            },
+            "riskLevel":{
+                "type":"short"
+            },
+            "address":{
+                "type":"keyword"
+            },
+            "size":{
+                "type":"long"
+            },
+            "weight":{
+                "type":"long"
+            },
+            "gasUsed":{
+                "type":"text"
+            },
+            "isError":{
+                "type":"text"
+            },
+            "errCode":{
+                "type":"text"
+            },
+            "contractAddress":{
+                "type":"keyword"
+            },
+            "functionName":{
+                "type":"keyword"
+            },
+            "methodId":{
+                "type":"keyword"
+            },
+            "traceId":{
+                "type":"text"
+            },
+            "confirmations":{
+                "type":"text"
+            },
+            "cumulativeGasUsed":{
+                "type":"text"
+            },
+            "gasPrice":{
+                "type":"text"
+            },
+            "lockTime":{
+                "type":"long"
+            },
+            "txIndex":{
+                "type":"keyword"
+            },
+            "doubleSpend":{
+                "type":"boolean"
+            },
+            "time":{
+                "type":"long"
+            },
+            "blockHeight":{
+                "type":"text"
+            },
+            "blockHash":{
+                "type":"text"
+            },
+            "value":{
+                "type":"long"
+            },
+            "inputs":{
+                "type":"nested",
+                "properties":{
+                    "sequence":{
+                        "type":"long"
+                    },
+                    "witness":{
+                        "type":"text"
+                    },
+                    "script":{
+                        "type":"text"
+                    },
+                    "addr":{
+                        "type":"keyword"
+                    },
+                    "spent":{
+                        "type":"boolean"
+                    },
+                    "txIndex":{
+                        "type":"text"
+                    },
+                    "value":{
+                        "type":"long"
+                    }
+                }
+            },
+            "out":{
+                "type":"nested",
+                "properties":{
+                    "spent":{
+                        "type":"boolean"
+                    },
+                    "value":{
+                        "type":"long"
+                    },
+                    "n":{
+                        "type":"long"
+                    },
+                    "txIndex":{
+                        "type":"text"
+                    },
+                    "script":{
+                        "type":"text"
+                    },
+                    "addr":{
+                        "type":"keyword"
+                    }
+                }
+            },
+            "internalTx":{
+                "type":"nested",
+                "properties":{
+                    "id":{
+                        "type":"keyword"
+                    },
+                    "traceAddress":{
+                        "type":"text"
+                    },
+                    "fromAddr":{
+                        "type":"keyword"
+                    },
+                    "toAddr":{
+                        "type":"keyword"
+                    },
+                    "inputTx":{
+                        "type":"text"
+                    },
+                    "outputTx":{
+                        "type":"text"
+                    },
+                    "value":{
+                        "type":"long"
+                    },
+                    "subTraces":{
+                        "type":"long"
+                    },
+                    "callType":{
+                        "type":"keyword"
+                    }
+                }
+            },
+            "logs":{
+                "type":"nested",
+                "properties":{
+                    "address":{
+                        "type":"keyword"
+                    },
+                    "eventInfo":{
+                        "type":"text"
+                    },
+                    "topics":{
+                        "type":"nested",
+                        "properties":{
+                            "key":{
+                                "type":"keyword"
+                            },
+                            "value":{
+                                "type":"keyword"
+                            }
+                        }
+                    }
+                }
+            },
+            "erc20Txn":{
+                "properties":{
+                    "fromAddr":{
+                        "type":"keyword"
+                    },
+                    "toAddr":{
+                        "type":"keyword"
+                    },
+                    "contractAddress":{
+                        "type":"keyword"
+                    },
+                    "amount":{
+                        "type":"long"
+                    }
+                }
+            },
+            "rules":{
+                "type":"text",
+                "fields":{
+                    "rule":{
+                        "type":"keyword"
+                    }
+                }
+            },
+            "riskChgHistory":{
+                "type":"nested",
+                "properties":{
+                    "dateOfBirth":{
+                        "type":"date"
+                    },
+                    "riskLevel":{
+                        "type":"short"
+                    },
+                    "description":{
+                        "type":"text"
+                    }
+                }
             }
-          }
         }
-      },
-      "erc20Txn": {
-        "properties": {
-          "fromAddr": {
-            "type": "keyword"
-          },
-          "toAddr": {
-            "type": "keyword"
-          },
-          "contractAddress": {
-            "type": "keyword"
-          },
-          "amount": {
-            "type": "long"
-          }
-        }
-      }
     }
-  }
 }
-
 `
 
 // ENTITY_MAPPING 实体映射
@@ -280,8 +318,14 @@ const ENTITY_MAPPING = `
 {
   "mappings": {
     "properties": {
+	  "entityId": {
+		"type": "keyword"
+	  },
       "isIndividual": {
         "type": "boolean"
+      },
+      "riskLevel": {
+		"type": "short"
       },
       "name": {
         "type": "text"
@@ -423,7 +467,29 @@ const ENTITY_MAPPING = `
             "type": "text"
           }
         }
-      }
+      },
+            "rules":{
+                "type":"text",
+                "fields":{
+                    "rule":{
+                        "type":"keyword"
+                    }
+                }
+            },
+            "riskChgHistory":{
+                "type":"nested",
+                "properties":{
+                    "dateOfBirth":{
+                        "type":"date"
+                    },
+                    "riskLevel":{
+                        "type":"short"
+                    },
+                    "description":{
+                        "type":"text"
+                    }
+                }
+            }
     }
   }
 }

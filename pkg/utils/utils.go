@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"github.com/google/uuid"
+	"log"
 	"math/big"
 	"math/rand"
 	"strconv"
@@ -54,4 +55,5 @@ func RandomSleep() {
 	// 生成一个1到5之间的随机数，代表休眠的秒数
 	randomSleepSeconds := rand.Intn(5) + 1
 	time.Sleep(time.Duration(randomSleepSeconds) * time.Second)
+	log.Println("Sleep", randomSleepSeconds, "s......")
 }

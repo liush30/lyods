@@ -3,6 +3,7 @@ package list
 
 import (
 	"encoding/csv"
+	"fmt"
 	"github.com/beevik/etree"
 	"github.com/buger/jsonparser"
 	"github.com/google/uuid"
@@ -16,16 +17,18 @@ import (
 	"lyods-adsTool/services/bitcoin"
 	"os"
 	"regexp"
+	"strconv"
 	"time"
 )
 
 // GetAddrListByJSONOnBitcoin 根据url获取json格式的地址名单-获取address & chain
-func GetAddrListByJSONOnBitcoin(url string, c *es.ElasticClient) error {
+func GetAddrListByJSONOnBitcoin(url string, bitClient *bitcoin.BitClient, c *es.ElasticClient) error {
 	var err error
 	//用于去除重复数据
 	temp := map[string]struct{}{}
+	client := utils.CreateClient()
 	//创建http请求
-	resp, err := utils.SendHTTPRequest(url, constants.HTTP_GET, nil)
+	resp, err := utils.SendHTTPRequest(client, url)
 	if err != nil {
 		log.Println("GetAddrListByJSONOnBitcoin Request Error:", err.Error())
 		return err
@@ -36,8 +39,14 @@ func GetAddrListByJSONOnBitcoin(url string, c *es.ElasticClient) error {
 		log.Fatal("Io Read Error:", err)
 		return err
 	}
+	//初始化计数器和时间戳
+	//requestCount := 0
+	//lastRequestTime := time.Now()
+	//创建一个定时器，每秒增加计数器
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 	//解析读取的数据，根据指定路径road，获取指定的json字段fields
-	jsonparser.ArrayEach(body, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+	_, err = jsonparser.ArrayEach(body, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 		//获取风险地址
 		addrStr, err := jsonparser.GetString(value, "address")
 		if err != nil {
@@ -71,12 +80,12 @@ func GetAddrListByJSONOnBitcoin(url string, c *es.ElasticClient) error {
 			}
 			//判断该风险地址是否已经存在，若该地址已经存在，则更新地址来源
 			if isExist {
-				log.Printf("%s信息已存在,添加该数据来源\n", addrStr)
-				err = c.AddDsAddrSource(id, dsAddrInfo)
-				if err != nil {
-					log.Fatal("Fail add data source:", err.Error())
-					return
-				}
+				//log.Printf("%s信息已存在,添加该数据来源\n", addrStr)
+				//err = c.AddDsAddrSource(id, dsAddrInfo)
+				//if err != nil {
+				//	log.Fatal("Fail add data source:", err.Error())
+				//	return
+				//}
 			} else {
 				//log.Printf("添加%s地址至风险名单中\n", addrStr)
 				//地址不存在，则新建
@@ -95,17 +104,39 @@ func GetAddrListByJSONOnBitcoin(url string, c *es.ElasticClient) error {
 					log.Fatal("Fail inset risk address to es", err.Error())
 					return
 				}
+				//如果请求计数超过限制，等待1分钟
+				//checkRequestStatus(&requestCount, &lastRequestTime)
 				//查询该地址的交易信息
-				_, err := bitcoin.GetTxListOnBTC(c, addrStr)
+				_, pageTotal, err := bitcoin.GetTxListByBtcCom(bitClient, client, c, addrStr, constants.BTC_INIT_PAGE)
 				if err != nil {
-					log.Fatal("Fail get tx list on btc", err.Error())
+					log.Fatal("Fail get tx list on btc:", err.Error())
 					return
+				}
+				bitClient.AddReqCount()
+				pageNum := 1
+				//若pageTotal>1,则继续查询后续交易信息
+				if pageTotal > 1 {
+					for int64(pageNum) < pageTotal {
+						//checkRequestStatus(&requestCount, &lastRequestTime)
+						pageNum++
+						_, _, err = bitcoin.GetTxListByBtcCom(bitClient, client, c, addrStr, strconv.Itoa(pageNum))
+						if err != nil {
+							log.Fatal("Fail get tx list on btc:", err.Error())
+							return
+						}
+					}
+
 				}
 			}
 		}
 	}, "result")
+	if err != nil {
+		return fmt.Errorf("fail parse json:%v", err)
+	}
 	return nil
 }
+
+// 检查请求状态
 
 // GetAddrListOnCsv 根据url获得csv格式的地址名单-批量获取address,获取index列的数据
 func GetAddrListOnCsv(url string, c *es.ElasticClient) error {
@@ -114,8 +145,9 @@ func GetAddrListOnCsv(url string, c *es.ElasticClient) error {
 	//var addrList []domain.WalletAddr
 	//用于去除重复数据
 	temp := map[string]struct{}{}
+	client := utils.CreateClient()
 	//创建http请求
-	resp, err := utils.SendHTTPRequest(url, constants.HTTP_GET, nil)
+	resp, err := utils.SendHTTPRequest(client, url)
 	if err != nil {
 		log.Println("Request Error:", err.Error())
 		return err
@@ -326,6 +358,7 @@ func GetAddrListOnXmlByElement(path string, c *es.ElasticClient) error {
 		}
 		if isCurrency {
 			//存储entity信息
+			entityInfo.EntityId = entityId
 			entityInfo.Email = emailList
 			entityInfo.Website = websiteList
 			entityInfo.PhoneNumber = phoneList

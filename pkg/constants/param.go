@@ -1,8 +1,14 @@
 package constants
 
+import "time"
+
 const (
 	HTTP_GET  = "get"
 	HTTP_POST = "POST"
+)
+const (
+	BTC_MAX_REQUEST = 6           //最大请求次数
+	BTC_PER_MINUTE  = time.Minute //等待时间段
 )
 const (
 	CHAIN_DASH     = iota //所在链-DASH
@@ -35,9 +41,10 @@ const (
 
 // es相关常量定义信息
 const (
-	ES_ADDRESS     = "risk_address"     //风险名单索引名称
-	ES_TRANSACTION = "risk_transaction" //风险交易索引名称
-	ES_ENTITY      = "risk_entity"      //风险名单实体信息索引名称
+	ES_ADDRESS      = "risk_address"       //风险名单索引名称
+	ES_TRANSACTION  = "risk_transaction"   //风险交易索引名称
+	ES_ENTITY       = "risk_entity"        //风险名单实体信息索引名称
+	ES_CHANGERECORD = "risk_change_record" //风险等级变更记录
 )
 const (
 	RPC_ID           = 1

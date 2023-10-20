@@ -11,7 +11,7 @@ import (
 // GetLatestBlockNumber 获取最新区块高度
 func GetLatestBlockNumber(client http.Client) (int64, error) {
 	//发送请求
-	res, err := client.Get(constants.REQUEST_BTC_BLOCK)
+	res, err := client.Get(constants.BTC_BLOCK)
 	if err != nil {
 		return 0, err
 	} else if res.StatusCode != http.StatusOK {

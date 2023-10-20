@@ -5,7 +5,6 @@ import "lyods-adsTool/config"
 
 // 根据指定地址查询区块链上的交易信息
 const (
-	API_BTC_TRANS       = `https://blockchain.info/rawaddr/`                                                                //BTC根据指定地址查询交易信息api
 	API_ETH_TRANS       = `http://api.etherscan.io/api?module=account&action=txlist&apikey=` + config.ETH_KEY + `&address=` //ETH根据指定地址查询普通交易信息api
 	API_ETH_ABI         = `https://api.etherscan.io/api?module=contract&action=getabi&apikey=` + config.ETH_KEY + `&address=`
 	API_ETH_INTRANS     = `https://api.etherscan.io/api?module=account&action=txlistinternal&apikey=` + config.ETH_KEY + `&address=` //ETh根据指定地址查询内部交易信息
@@ -27,5 +26,9 @@ const (
 
 // bitcoin
 const (
-	REQUEST_BTC_BLOCK = "https://chain.api.btc.com/v3/block/latest"
+	BTC_BLOCK           = "https://chain.api.btc.com/v3/block/latest" //btc.com 获取最新区块
+	BTC_ADDR            = "https://chain.api.btc.com/v3/address/"     //一分钟请求6次   //15urYnyeJe3gwbGJ74wcX89Tz7ZtsFDVew/tx
+	BTC_ADDR_BLOCKCHAIN = `https://blockchain.info/rawaddr/`          //BTC根据指定地址查询交易信息api
+	BTC_PAGRSIZE        = "50"
+	BTC_INIT_PAGE       = "1"
 )

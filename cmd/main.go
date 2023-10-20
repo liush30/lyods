@@ -5,7 +5,9 @@ import (
 	"log"
 	"lyods-adsTool/es"
 	"lyods-adsTool/pkg/constants"
+	"lyods-adsTool/services/bitcoin"
 	"lyods-adsTool/services/list"
+	"time"
 )
 
 func main() {
@@ -15,16 +17,19 @@ func main() {
 		return
 	}
 	//删除索引
-	deleteIndex(esClient, constants.ES_ADDRESS)
-	deleteIndex(esClient, constants.ES_TRANSACTION)
-	deleteIndex(esClient, constants.ES_ENTITY)
+	//deleteIndex(esClient, constants.ES_ADDRESS)
+	//deleteIndex(esClient, constants.ES_TRANSACTION)
+	//deleteIndex(esClient, constants.ES_ENTITY)
 	//创建不同的索引
-	createIndex(esClient, constants.ES_ADDRESS, constants.ADDR_MAPPING)
-	createIndex(esClient, constants.ES_TRANSACTION, constants.TRANS_MAPPING)
-	createIndex(esClient, constants.ES_ENTITY, constants.ENTITY_MAPPING)
-
+	//createIndex(esClient, constants.ES_ADDRESS, constants.ADDR_MAPPING)
+	//createIndex(esClient, constants.ES_TRANSACTION, constants.TRANS_MAPPING)
+	//createIndex(esClient, constants.ES_ENTITY, constants.ENTITY_MAPPING)
+	bitClient := bitcoin.BitClient{
+		RequestCount:    0,
+		LastRequestTime: time.Now(),
+	}
 	// 获取风险名单信息
-	if err := list.GetAddrListByJSONOnBitcoin(constants.OPENSANCTIONS_URL, esClient); err != nil {
+	if err := list.GetAddrListByJSONOnBitcoin(constants.OPENSANCTIONS_URL, &bitClient, esClient); err != nil {
 		log.Printf("Failed to get risk list from JSON source: %v\n", err)
 	}
 	//if err := list.GetAddrListOnCsv(constants.UNISWAP_URL, esClient); err != nil {
@@ -33,16 +38,12 @@ func main() {
 	//if err := list.GetAddrListOnXmlByElement(`D:\Code\GoProjec\lyods-adsTool\sdn.xml`, esClient); err != nil {
 	//	log.Printf("Failed to get risk list from XML source: %v\n", err)
 	//}
-	//list, err := bitcoin.GetTxListOnBTC(esClient, "17TMc2UkVRSga2yYvuxSD9Q1XyB2EPRjTF")
-	//if err != nil {
-	//	log.Printf("Failed to get risk list from XML source: %v\n", err)
-	//}
-	//log.Println(len(list))
 	//dbClient := db.GetDb()
 	//defer dbClient.Close()
 	////添加更新记录
 	//err := db.AddUpdateRecord(dbClient, domain.UpdateLog{
 	//	LogKey:     utils.GenerateUuid(),
+
 	//	UpdateDate: time.Now().Format(time.DateTime),
 	//	UpdateName: "opensanctions",
 	//})
