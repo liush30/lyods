@@ -1,5 +1,5 @@
-// Package ethereum 查询ethereum交易信息及层级信息
-package ethereum
+// Package eth 查询ethereum交易信息及层级信息
+package eth
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 	"log"
 	"lyods-adsTool/db"
 	"lyods-adsTool/domain"
+	"lyods-adsTool/es"
 	"lyods-adsTool/pkg/constants"
 	"lyods-adsTool/pkg/utils"
 	"math/big"
@@ -21,25 +22,27 @@ import (
 )
 
 // GetTxListOnEth 查询指定外部账户的所有交易信息
-func (e *EthClient) GetTxListOnEth(addr string) ([]domain.EsTrans, error) {
+func (e *EthClient) GetTxListOnEth(addr, startBlock string, c *es.ElasticClient) ([]domain.EsTrans, string, error) {
 	// 获取URL以获取指定账户的所有交易信息
-	url := getNormalUrlEth(addr)
+	url := getNormalUrlEth(addr, startBlock, e.GetKey())
 
 	// 发送HTTP请求
-	resp, err := utils.SendHTTPRequest(url, constants.HTTP_GET, nil)
+	resp, err := e.SendHTTPRequest(url)
 	if err != nil {
-		return nil, fmt.Errorf("request error: %v", err)
+		return nil, "", fmt.Errorf("request error: %v", err)
 	}
 	defer resp.Body.Close()
 
 	// 读取响应数据
 	body, err := io.ReadAll(resp.Body)
 	if err != nil || body == nil {
-		return nil, fmt.Errorf("io read error: %v", err)
+		return nil, "", fmt.Errorf("io read error: %v", err)
 	}
 
 	taskList := make([]domain.EsTrans, 0)
 	contractAbiMap := make(map[common.Address][]byte)
+	hashCount := 0        //记录获取的交易总量
+	lastBlockNumber := "" //最后一个交易的区块数
 
 	_, err = jsonparser.ArrayEach(body, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 		if err != nil {
@@ -58,6 +61,7 @@ func (e *EthClient) GetTxListOnEth(addr string) ([]domain.EsTrans, error) {
 		traceTran, err := GetTraceTransaction(trans.Hash)
 		if err != nil {
 			log.Printf("Error getting trace transaction: %v", err)
+
 			return
 		}
 		trans.InternalTx = traceTran
@@ -75,14 +79,25 @@ func (e *EthClient) GetTxListOnEth(addr string) ([]domain.EsTrans, error) {
 
 		// 查询交易内部的ERC20转账交易信息
 		taskList = append(taskList, trans)
+		hashCount++
+		//获得区块号
+		if hashCount == constants.ETH_MAX_TRANS {
+			lastBlockNumber = trans.BlockHeight
+		}
+		err = c.Insert(constants.ES_TRANSACTION, trans.Hash, trans)
+		if err != nil {
+			log.Println("Insert Transaction Error:", err.Error())
+			return
+		}
+
 	}, "result")
 
 	if err != nil {
 		log.Println("ArrayEach result:", err.Error())
-		return nil, err
+		return nil, "", err
 	}
 
-	return taskList, nil
+	return taskList, lastBlockNumber, nil
 }
 
 // 处理交易基本信息，将信息存储与EsTrans中并返回
@@ -667,8 +682,8 @@ func getInternalEthUrl(addr string) string {
 }
 
 // ethereum根据地址获取普通交易请求url
-func getNormalUrlEth(addr string) string {
-	return constants.API_ETH_TRANS + addr
+func getNormalUrlEth(addr, startBlock, key string) string {
+	return constants.ETH_ADDR_ETHSCAN + startBlock + "&address=" + addr + "&apikey=" + key
 }
 
 // arbitrum根据地址获取普通交易url

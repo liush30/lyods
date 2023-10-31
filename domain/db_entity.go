@@ -1,9 +1,5 @@
 package domain
 
-import (
-	"database/sql"
-)
-
 // Token 结构体
 type Token struct {
 	TokenKey        string
@@ -13,22 +9,22 @@ type Token struct {
 	Blockchain      string
 	CreateDate      string
 	LastModifyDate  string
-	Abi             []byte
+	Abi             string
 	ProxyAddr       string
 }
 
-//type AddrTag struct {
-//	TagKey         string
-//	CID            uint
-//	TagName        string
-//	TagStatus      string
-//	TagIll         string
-//	CreatorID      string
-//	CreateDate     string
-//	ModifierID     string
-//	LastModifyDate string
-//	Version        int
-//}
+type AddrTag struct {
+	TagKey         string
+	CID            uint
+	TagName        string
+	TagStatus      string
+	TagIll         string
+	CreatorID      string
+	CreateDate     string
+	ModifierID     string
+	LastModifyDate string
+	Version        int
+}
 
 type WhitelistAddr struct {
 	TWARKey        string
@@ -36,20 +32,15 @@ type WhitelistAddr struct {
 	TWAddr         string
 	TWChain        string
 	TWType         string
-	AddType        string
+	Status         string
 	AddrIll        string
 	AddrSource     string
 	TagKey         string
-	TokenName      string
-	Abi            []byte
-	ProxyAddr      sql.NullString
-	Website        string
 	CreatorID      string
 	CreateDate     string
 	ModifierID     string
 	LastModifyDate string
 	Version        uint
-	TokenDecimal   int
 }
 
 //type EventInfo struct {

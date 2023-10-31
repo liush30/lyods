@@ -1,4 +1,4 @@
-package ethereum
+package eth
 
 import (
 	"bytes"
@@ -8,28 +8,12 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"log"
-	"lyods-adsTool/db"
 	"lyods-adsTool/domain"
 	"lyods-adsTool/pkg/constants"
 	"math/big"
 	"strings"
 )
-
-// EthClient ethereum查询风险账号相关操作
-type EthClient struct {
-	*ethclient.Client
-}
-
-func CreateEthClient() *ethclient.Client {
-	client, err := ethclient.Dial(constants.URL_INFRUA)
-	if err != nil {
-		log.Fatal("连接失败:", err)
-		return nil
-	}
-	return client
-}
 
 // getInternalTxn 根据事件信息进行解析，存储到InternalTxn结构体中
 // eventName 事件名称
@@ -211,21 +195,21 @@ func getOrLoadABI(dbClient *sql.DB, logAddr common.Address, contractAbiMap *map[
 // 根据合约地址查询abi信息：1.先从数据库中根据合约地址查询abi信息2.若未查询到则通过api查询abi信息
 func loadABIFromDatabase(dbClient *sql.DB, logAddr common.Address) ([]byte, error) {
 	// 查询数据库中的合约ABI信息
-	abiByte, err := db.GetAbi(dbClient, logAddr.String())
-	if err != nil {
-		return nil, fmt.Errorf("failed to get ABI info from the database: %v", err)
-	}
+	//abiByte, err := db.GetAbi(dbClient, logAddr.String())
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to get ABI info from the database: %v", err)
+	//}
+	//
+	//if abiByte == nil {
+	//	// 通过地址查询合约的ABI信息
+	//	contractAbiStr, err := GetContractAbiOnEth(logAddr.String())
+	//	if err != nil {
+	//		return nil, fmt.Errorf("failed to get ABI info from the API: %v", err)
+	//	}
+	//	abiByte = []byte(contractAbiStr)
+	//}
 
-	if abiByte == nil {
-		// 通过地址查询合约的ABI信息
-		contractAbiStr, err := GetContractAbiOnEth(logAddr.String())
-		if err != nil {
-			return nil, fmt.Errorf("failed to get ABI info from the API: %v", err)
-		}
-		abiByte = []byte(contractAbiStr)
-	}
-
-	return abiByte, nil
+	return nil, nil
 }
 
 // 获取未验证的合约的log信息

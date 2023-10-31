@@ -18,39 +18,39 @@ import (
 	"strings"
 )
 
-func GetTxListByBlockChain(c *es.ElasticClient, addr string) ([]domain.EsTrans, error) {
-	//随机休眠几秒
-	//utils.RandomSleep()
-	var transList []domain.EsTrans
-	//获得url-获取到指定账户的所有交易信息url
-	url := getUrlByBlockChain(addr)
-	//发送http请求-根据url
-	resp, err := utils.SendHTTPRequestWithRateLimit(url, constants.HTTP_GET, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read Body Error:%v", err)
-	}
-	//遍历该地址的每一条交易信息，并存储于transList中
-	_, err = jsonparser.ArrayEach(body, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-		trans := processTransaction(value, addr)
-		transList = append(transList, trans)
-		//将交易记录存储到es中
-		err = c.Insert(constants.ES_TRANSACTION, trans.Hash, trans)
-		if err != nil {
-			log.Println("Insert Transaction Error:", err.Error())
-			return
-		}
-	}, "txs")
-	if err != nil {
-		log.Println("ArrayEach Txs:", err.Error())
-		return nil, err
-	}
-	return transList, nil
-}
+//	func GetTxListByBlockChain(c *es.ElasticClient, addr string) ([]domain.EsTrans, error) {
+//		//随机休眠几秒
+//		//utils.RandomSleep()
+//		var transList []domain.EsTrans
+//		//获得url-获取到指定账户的所有交易信息url
+//		url := getUrlByBlockChain(addr)
+//		//发送http请求-根据url
+//		resp, err := utils.SendHTTPRequestWithRateLimit(url, constants.HTTP_GET, nil)
+//		if err != nil {
+//			return nil, err
+//		}
+//		defer resp.Body.Close()
+//		body, err := io.ReadAll(resp.Body)
+//		if err != nil {
+//			return nil, fmt.Errorf("read Body Error:%v", err)
+//		}
+//		//遍历该地址的每一条交易信息，并存储于transList中
+//		_, err = jsonparser.ArrayEach(body, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+//			trans := processTransaction(value, addr)
+//			transList = append(transList, trans)
+//			//将交易记录存储到es中
+//			err = c.Insert(constants.ES_TRANSACTION, trans.Hash, trans)
+//			if err != nil {
+//				log.Println("Insert Transaction Error:", err.Error())
+//				return
+//			}
+//		}, "txs")
+//		if err != nil {
+//			log.Println("ArrayEach Txs:", err.Error())
+//			return nil, err
+//		}
+//		return transList, nil
+//	}
 func GetTxListByBtcCom(bitClient *BitClient, httpClient *http.Client, c *es.ElasticClient, addr, page string) ([]domain.EsTrans, int64, error) {
 	var transList []domain.EsTrans
 	var pageTotal int64
@@ -105,6 +105,7 @@ func GetTxListByBtcCom(bitClient *BitClient, httpClient *http.Client, c *es.Elas
 	}
 	return transList, pageTotal, nil
 }
+
 func processTransByBtcCom(value []byte, addr string) domain.EsTrans {
 	var inputTransList []domain.InputsTrans //inputs信息
 	var outTransList []domain.OutTrans      //out信息
@@ -112,6 +113,14 @@ func processTransByBtcCom(value []byte, addr string) domain.EsTrans {
 	utils.IsError(err, "Fail get hash")
 	transSize, err := jsonparser.GetInt(value, "size")
 	utils.IsError(err, "Fail get size")
+	inputCount, err := jsonparser.GetInt(value, "inputs_count")
+	utils.IsError(err, "Fail get inputs_count")
+	outputCount, err := jsonparser.GetInt(value, "outputs_count")
+	utils.IsError(err, "Fail get outputs_count")
+	inputsValue, err := jsonparser.GetInt(value, "inputs_value")
+	utils.IsError(err, "Fail get inputs_value")
+	outsValue, err := jsonparser.GetInt(value, "outputs_value")
+	utils.IsError(err, "Fail get outputs_value")
 	transWeight, err := jsonparser.GetInt(value, "weight")
 	utils.IsError(err, "Fail get weight")
 	transFee, _, _, err := jsonparser.Get(value, "fee")
@@ -138,6 +147,8 @@ func processTransByBtcCom(value []byte, addr string) domain.EsTrans {
 		//将单个inputs信息存储于inputs list中
 		inputTransList = append(inputTransList, processInputsByBtcCom(inputValue))
 	}, "inputs")
+	inputValueFloat, _ := ConvertSatoshiToBTC(big.NewInt(inputsValue))
+	outputValueFloat, _ := ConvertSatoshiToBTC(big.NewInt(outsValue))
 	return domain.EsTrans{
 		Hash:          transHash,
 		Address:       addr,
@@ -147,42 +158,48 @@ func processTransByBtcCom(value []byte, addr string) domain.EsTrans {
 		LockTime:      transLockTime,
 		Confirmations: strconv.Itoa(int(transConfirm)),
 		DoubleSpend:   transDoubleSpend,
-		Time:          transTime,
+		Time:          utils.UnixToTime(transTime),
 		BlockHeight:   strconv.Itoa(int(transBlockIndex)),
 		Inputs:        inputTransList,
 		Out:           outTransList,
+		InputCount:    inputCount,
+		OutputCount:   outputCount,
+		InputValue:    inputValueFloat,
+		OutputValue:   outputValueFloat,
+		Chain:         constants.BTC_CHAIN,
 	}
 }
 
 // processInputs 处理 inputs 部分的代码块
-func processInputs(inputValue []byte) domain.InputsTrans {
-	inputSequence, err := jsonparser.GetInt(inputValue, "sequence")
-	utils.IsError(err, "Fail get input sequence")
-	inputWitness, err := jsonparser.GetString(inputValue, "witness")
-	utils.IsError(err, "Fail get input witness")
-	inputScript, err := jsonparser.GetString(inputValue, "script")
-	utils.IsError(err, "Fail get input script")
-	inputAddr, err := jsonparser.GetString(inputValue, "prev_out", "addr")
-	utils.IsErrorFloat(err, "Fail get input addr")
-	inputSpent, err := jsonparser.GetBoolean(inputValue, "prev_out", "spent")
-	utils.IsError(err, "Fail get input spent")
-	inputTxIndex, _, _, err := jsonparser.Get(inputValue, "prev_out", "tx_index")
-	utils.IsError(err, "Fail get input tx_index")
-	inputValueVal, _, _, err := jsonparser.Get(inputValue, "prev_out", "value")
-	utils.IsErrorFloat(err, "Fail get input value")
-	var result big.Int
-	return domain.InputsTrans{
-		Sequence: inputSequence,
-		Witness:  inputWitness,
-		Script:   inputScript,
-		Addr:     inputAddr,
-		Spent:    inputSpent,
-		TxIndex:  string(inputTxIndex),
-		Value:    result.SetBytes(inputValueVal).Int64(),
-	}
-	//将单个inputs信息存储于inputs list中
-	//inputTransList = append(inputTransList, inputsTrans)
-}
+//
+//	func processInputs(inputValue []byte) domain.InputsTrans {
+//		inputSequence, err := jsonparser.GetInt(inputValue, "sequence")
+//		utils.IsError(err, "Fail get input sequence")
+//		inputWitness, err := jsonparser.GetString(inputValue, "witness")
+//		utils.IsError(err, "Fail get input witness")
+//		inputScript, err := jsonparser.GetString(inputValue, "script")
+//		utils.IsError(err, "Fail get input script")
+//		inputAddr, err := jsonparser.GetString(inputValue, "prev_out", "addr")
+//		utils.IsErrorFloat(err, "Fail get input addr")
+//		inputSpent, err := jsonparser.GetBoolean(inputValue, "prev_out", "spent")
+//		utils.IsError(err, "Fail get input spent")
+//		inputTxIndex, _, _, err := jsonparser.Get(inputValue, "prev_out", "tx_index")
+//		utils.IsError(err, "Fail get input tx_index")
+//		inputValueVal, _, _, err := jsonparser.Get(inputValue, "prev_out", "value")
+//		utils.IsErrorFloat(err, "Fail get input value")
+//		var result big.Int
+//		return domain.InputsTrans{
+//			Sequence: inputSequence,
+//			Witness:  inputWitness,
+//			Script:   inputScript,
+//			Addr:     inputAddr,
+//			Spent:    inputSpent,
+//			TxIndex:  string(inputTxIndex),
+//			Value:    result.SetBytes(inputValueVal).Int64(),
+//		}
+//		//将单个inputs信息存储于inputs list中
+//		//inputTransList = append(inputTransList, inputsTrans)
+//	}
 func processInputsByBtcCom(inputValue []byte) domain.InputsTrans {
 	inputSequence, err := jsonparser.GetInt(inputValue, "sequence")
 	utils.IsError(err, "Fail get input sequence")
@@ -201,42 +218,45 @@ func processInputsByBtcCom(inputValue []byte) domain.InputsTrans {
 	if err != nil {
 		log.Fatal("fail unmarshal:", err) // handle error
 	}
+	valueFloat, valueText := ConvertSatoshiToBTC(big.NewInt(inputValueVal))
 	return domain.InputsTrans{
-		Sequence: inputSequence,
-		Witness:  inputWitness,
-		Script:   inputScript,
-		Addr:     strings.Join(addrList, ","),
-		TxIndex:  string(inputTxIndex),
-		Value:    inputValueVal,
+		Sequence:  inputSequence,
+		Witness:   inputWitness,
+		Script:    inputScript,
+		Addr:      strings.Join(addrList, ","),
+		TxIndex:   strconv.Itoa(int(inputTxIndex)),
+		Value:     valueFloat,
+		ValueText: valueText,
 	}
 	//将单个inputs信息存储于inputs list中
 	//inputTransList = append(inputTransList, inputsTrans)
 }
 
 // processOut 处理 out 部分的代码块
-func processOut(outValue []byte) domain.OutTrans {
-	outSpent, err := jsonparser.GetBoolean(outValue, "spent")
-	utils.IsError(err, "Fail get spent")
-	outValueVal, _, _, err := jsonparser.Get(outValue, "value")
-	utils.IsErrorFloat(err, "Fail get value")
-	outN, err := jsonparser.GetInt(outValue, "n")
-	utils.IsError(err, "Fail get n")
-	outTxIndex, _, _, err := jsonparser.Get(outValue, "tx_index")
-	utils.IsError(err, "Fail get tx_index")
-	outScript, err := jsonparser.GetString(outValue, "script")
-	utils.IsError(err, "Fail get script")
-	outAddr, err := jsonparser.GetString(outValue, "addr")
-	utils.IsErrorFloat(err, "Fail get addr")
-	var result big.Int
-	return domain.OutTrans{
-		Spent:   outSpent,
-		Value:   result.SetBytes(outValueVal).Int64(),
-		TxIndex: string(outTxIndex),
-		Script:  outScript,
-		Addr:    outAddr,
-		N:       outN,
-	}
-}
+//
+//	func processOut(outValue []byte) domain.OutTrans {
+//		outSpent, err := jsonparser.GetBoolean(outValue, "spent")
+//		utils.IsError(err, "Fail get spent")
+//		outValueVal, _, _, err := jsonparser.Get(outValue, "value")
+//		utils.IsErrorFloat(err, "Fail get value")
+//		outN, err := jsonparser.GetInt(outValue, "n")
+//		utils.IsError(err, "Fail get n")
+//		outTxIndex, _, _, err := jsonparser.Get(outValue, "tx_index")
+//		utils.IsError(err, "Fail get tx_index")
+//		outScript, err := jsonparser.GetString(outValue, "script")
+//		utils.IsError(err, "Fail get script")
+//		outAddr, err := jsonparser.GetString(outValue, "addr")
+//		utils.IsErrorFloat(err, "Fail get addr")
+//		var result big.Int
+//		return domain.OutTrans{
+//			Spent:   outSpent,
+//			Value:   result.SetBytes(outValueVal).Int64(),
+//			TxIndex: string(outTxIndex),
+//			Script:  outScript,
+//			Addr:    outAddr,
+//			N:       outN,
+//		}
+//	}
 func processOutByBtcCom(outValue []byte) domain.OutTrans {
 	outValueVal, err := jsonparser.GetInt(outValue, "value")
 	utils.IsErrorFloat(err, "Fail get value")
@@ -251,59 +271,62 @@ func processOutByBtcCom(outValue []byte) domain.OutTrans {
 	if err != nil {
 		log.Fatal("fail unmarshal:", err)
 	}
+	outValueFloat, outValueText := ConvertSatoshiToBTC(big.NewInt(outValueVal))
 	return domain.OutTrans{
-		Value:  outValueVal,
-		Addr:   strings.Join(addressList, ","),
-		N:      outN,
-		Script: outScript,
+		Value:     outValueFloat,
+		ValueText: outValueText,
+		Addr:      strings.Join(addressList, ","),
+		N:         outN,
+		Script:    outScript,
 	}
 }
-func processTransaction(value []byte, addr string) domain.EsTrans {
-	var inputTransList []domain.InputsTrans //inputs信息
-	var outTransList []domain.OutTrans      //out信息
-	transHash, err := jsonparser.GetString(value, "hash")
-	utils.IsError(err, "Fail get hash")
-	transSize, err := jsonparser.GetInt(value, "size")
-	utils.IsError(err, "Fail get size")
-	transWeight, err := jsonparser.GetInt(value, "weight")
-	utils.IsError(err, "Fail get weight")
-	transFee, _, _, err := jsonparser.Get(value, "fee")
-	utils.IsError(err, "Fail get fee")
-	transLockTime, err := jsonparser.GetInt(value, "lock_time")
-	utils.IsError(err, "Fail get lock_time")
-	transTxIndex, _, _, err := jsonparser.Get(value, "tx_index")
-	utils.IsError(err, "Fail get tx_index")
-	transDoubleSpend, err := jsonparser.GetBoolean(value, "double_spend")
-	utils.IsError(err, "Fail get double_spend")
-	transTime, err := jsonparser.GetInt(value, "time")
-	utils.IsError(err, "Fail get time")
-	transBlockIndex, err := jsonparser.GetInt(value, "block_height")
-	utils.IsError(err, "Fail get block_height")
-	//获得out信息
-	jsonparser.ArrayEach(value, func(outValue []byte, dataType jsonparser.ValueType, offset int, err error) {
-		//将单个out信息存储于out list中
-		outTransList = append(outTransList, processOut(outValue))
-	}, "out")
-	//获取inputs信息
-	jsonparser.ArrayEach(value, func(inputValue []byte, dataType jsonparser.ValueType, offset int, err error) {
-		//将单个inputs信息存储于inputs list中
-		inputTransList = append(inputTransList, processInputs(inputValue))
-	}, "inputs")
-	return domain.EsTrans{
-		Hash:        transHash,
-		Address:     addr,
-		Size:        transSize,
-		Weight:      transWeight,
-		GasUsed:     string(transFee),
-		LockTime:    transLockTime,
-		TxIndex:     string(transTxIndex),
-		DoubleSpend: transDoubleSpend,
-		Time:        transTime,
-		BlockHeight: strconv.Itoa(int(transBlockIndex)),
-		Inputs:      inputTransList,
-		Out:         outTransList,
-	}
-}
+
+//func processTransaction(value []byte, addr string) domain.EsTrans {
+//	var inputTransList []domain.InputsTrans //inputs信息
+//	var outTransList []domain.OutTrans      //out信息
+//	transHash, err := jsonparser.GetString(value, "hash")
+//	utils.IsError(err, "Fail get hash")
+//	transSize, err := jsonparser.GetInt(value, "size")
+//	utils.IsError(err, "Fail get size")
+//	transWeight, err := jsonparser.GetInt(value, "weight")
+//	utils.IsError(err, "Fail get weight")
+//	transFee, _, _, err := jsonparser.Get(value, "fee")
+//	utils.IsError(err, "Fail get fee")
+//	transLockTime, err := jsonparser.GetInt(value, "lock_time")
+//	utils.IsError(err, "Fail get lock_time")
+//	transTxIndex, _, _, err := jsonparser.Get(value, "tx_index")
+//	utils.IsError(err, "Fail get tx_index")
+//	transDoubleSpend, err := jsonparser.GetBoolean(value, "double_spend")
+//	utils.IsError(err, "Fail get double_spend")
+//	transTime, err := jsonparser.GetInt(value, "time")
+//	utils.IsError(err, "Fail get time")
+//	transBlockIndex, err := jsonparser.GetInt(value, "block_height")
+//	utils.IsError(err, "Fail get block_height")
+//	//获得out信息
+//	jsonparser.ArrayEach(value, func(outValue []byte, dataType jsonparser.ValueType, offset int, err error) {
+//		//将单个out信息存储于out list中
+//		outTransList = append(outTransList, processOut(outValue))
+//	}, "out")
+//	//获取inputs信息
+//	jsonparser.ArrayEach(value, func(inputValue []byte, dataType jsonparser.ValueType, offset int, err error) {
+//		//将单个inputs信息存储于inputs list中
+//		inputTransList = append(inputTransList, processInputs(inputValue))
+//	}, "inputs")
+//	return domain.EsTrans{
+//		Hash:        transHash,
+//		Address:     addr,
+//		Size:        transSize,
+//		Weight:      transWeight,
+//		GasUsed:     string(transFee),
+//		LockTime:    transLockTime,
+//		TxIndex:     string(transTxIndex),
+//		DoubleSpend: transDoubleSpend,
+//		Time:        utils.UnixToTime(transTime),
+//		BlockHeight: strconv.Itoa(int(transBlockIndex)),
+//		Inputs:      inputTransList,
+//		Out:         outTransList,
+//	}
+//}
 
 // GetTxAndSublistByAddr 查询指定的地址的所有交易信息，并将该地址的交易信息以及地址信息存于es中
 //func GetTxAndSublistByAddr(addr string) ([]string, error) {

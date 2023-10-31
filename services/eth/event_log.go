@@ -1,4 +1,4 @@
-package ethereum
+package eth
 
 import (
 	"lyods-adsTool/domain"

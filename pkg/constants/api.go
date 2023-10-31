@@ -27,8 +27,21 @@ const (
 // bitcoin
 const (
 	BTC_BLOCK           = "https://chain.api.btc.com/v3/block/latest" //btc.com 获取最新区块
-	BTC_ADDR            = "https://chain.api.btc.com/v3/address/"     //一分钟请求6次   //15urYnyeJe3gwbGJ74wcX89Tz7ZtsFDVew/tx
+	BTC_ADDR            = "https://chain.api.btc.com/v3/address/"     //一分钟请求6次
 	BTC_ADDR_BLOCKCHAIN = `https://blockchain.info/rawaddr/`          //BTC根据指定地址查询交易信息api
 	BTC_PAGRSIZE        = "50"
 	BTC_INIT_PAGE       = "1"
+	BTC_CHAIN           = "bitcoin"
+)
+
+// eth
+const (
+	ETH_KEY1         = "G3VRF1S7IMYSSP3D9J8KKUMJY61XT4EK2Q"
+	ETH_KEY2         = "UGE82ZM6XAU15BR5C5JVKSBMRM8DA3TQ4A"
+	ETH_MAX_SECOND   = 5
+	ETH_MAX_DAY      = 100000
+	ETH_START_BLOCK  = "0"
+	ETH_ADDR_ETHSCAN = "https://api.etherscan.io/api?module=account&action=txlist&startblock="
+	ETH_MAX_TRANS    = 10000
+	ETH_ABI          = "https://api.etherscan.io/api?module=contract&action=getabi&apikey="
 )

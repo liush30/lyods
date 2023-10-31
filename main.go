@@ -3,8 +3,8 @@
 //import (
 //	"context"
 //	"fmt"
-//	"github.com/ethereum/go-ethereum/common"
-//	"github.com/ethereum/go-ethereum/ethclient"
+//	"github.com/eth/go-eth/common"
+//	"github.com/eth/go-eth/ethclient"
 //	"log"
 //	"regexp"
 //)
@@ -119,10 +119,8 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"lyods-adsTool/domain"
 	"lyods-adsTool/pre"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -164,7 +162,7 @@ func main() {
 	//if err != nil {
 	//	fmt.Println("出错啦", err.Error())
 	//}
-	//list, err := ethereum.GetTraceTransaction("0x2d25001f57fe2c695771bb3a52a3904a153d0265ec7691bb7fe01e1c748a36a2")
+	//list, err := eth.GetTraceTransaction("0x2d25001f57fe2c695771bb3a52a3904a153d0265ec7691bb7fe01e1c748a36a2")
 	//if err != nil {
 	//	log.Println("出错了")
 	//	return
@@ -229,7 +227,7 @@ func main() {
 	// 计算余额变化
 	//balanceChange := new(big.Int).Sub(balanceAfter, balanceBefore)
 	//fmt.Println("变化为：", balanceChange)
-	//client := ethereum.EthClient{MClient: createClient(), Client: createEthClient()}
+	//client := eth.EthClient{MClient: createClient(), Client: createEthClient()}
 	//iii, err := client.GetBalanceChange(big.NewInt(9162124), "0xefAB18983029d2BA840E34698eFb67fDF8120711")
 	//if err != nil {
 	//	fmt.Println("Fail GetBalanceChange:", err.Error())
@@ -492,7 +490,7 @@ func main() {
 	//		TWARKey:    uuid.New().String(),
 	//		CID:        1,
 	//		TWAddr:     "0x4Fabb145d64652a948d72533023f6E7A623C7C53",
-	//		TWChain:    "ethereum",
+	//		TWChain:    "eth",
 	//		TWType:     "1",
 	//		AddType:    "1",
 	//		AddrIll:    "BUSD",
@@ -507,7 +505,7 @@ func main() {
 	//		TWARKey:    uuid.New().String(),
 	//		CID:        1,
 	//		TWAddr:     "0x0000000000085d4780B73119b644AE5ecd22b376",
-	//		TWChain:    "ethereum",
+	//		TWChain:    "eth",
 	//		TWType:     "1",
 	//		AddType:    "1",
 	//		AddrIll:    "TrueUSD: TUSD Token",
@@ -522,7 +520,7 @@ func main() {
 	//		TWARKey:    uuid.New().String(),
 	//		CID:        1,
 	//		TWAddr:     "0x853d955aCEf822Db058eb8505911ED77F175b99e",
-	//		TWChain:    "ethereum",
+	//		TWChain:    "eth",
 	//		TWType:     "1",
 	//		AddType:    "1",
 	//		AddrIll:    "FRAX",
@@ -537,7 +535,7 @@ func main() {
 	//		TWARKey:    uuid.New().String(),
 	//		CID:        1,
 	//		TWAddr:     "0x0C10bF8FcB7Bf5412187A595ab97a3609160b5c6",
-	//		TWChain:    "ethereum",
+	//		TWChain:    "eth",
 	//		TWType:     "1",
 	//		AddType:    "1",
 	//		AddrIll:    "USDD",
@@ -579,16 +577,16 @@ func main() {
 }
 
 // 添加信息
-func addWhitelistAddr(db *sql.DB, addr domain.WhitelistAddr) error {
-	stmt, err := db.Prepare("INSERT INTO T_WHITELIST_ADDR (TWAR_KEY, CID, TW_ADDR, TW_CHAIN, TW_TYPE, ADD_TYPE, ADDR_ILL, ADDR_SOURCE, TAG_KEY,TOKEN_NAME, ABI,PROXY_ADDR,WEBSITE,CREATOR_ID, CREATE_DATE, MODIFIER_ID, LAST_MODIFY_DATE, VERSION) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?)")
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-
-	_, err = stmt.Exec(addr.TWARKey, addr.CID, addr.TWAddr, addr.TWChain, addr.TWType, addr.AddType, addr.AddrIll, addr.AddrSource, addr.TagKey, addr.TokenName, addr.Abi, addr.ProxyAddr, addr.Website, addr.CreatorID, addr.CreateDate, addr.ModifierID, addr.LastModifyDate, addr.Version)
-	if err != nil {
-		return err
-	}
-	return nil
-}
+//func addWhitelistAddr(db *sql.DB, addr domain.WhitelistAddr) error {
+//	stmt, err := db.Prepare("INSERT INTO T_WHITELIST_ADDR (TWAR_KEY, CID, TW_ADDR, TW_CHAIN, TW_TYPE, ADD_TYPE, ADDR_ILL, ADDR_SOURCE, TAG_KEY,TOKEN_NAME, ABI,PROXY_ADDR,WEBSITE,CREATOR_ID, CREATE_DATE, MODIFIER_ID, LAST_MODIFY_DATE, VERSION) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?)")
+//	if err != nil {
+//		return err
+//	}
+//	defer stmt.Close()
+//
+//	_, err = stmt.Exec(addr.TWARKey, addr.CID, addr.TWAddr, addr.TWChain, addr.TWType, addr.AddType, addr.AddrIll, addr.AddrSource, addr.TagKey, addr.TokenName, addr.Abi, addr.ProxyAddr, addr.Website, addr.CreatorID, addr.CreateDate, addr.ModifierID, addr.LastModifyDate, addr.Version)
+//	if err != nil {
+//		return err
+//	}
+//	return nil
+//}

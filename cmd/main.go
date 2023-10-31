@@ -4,10 +4,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"log"
 	"lyods-adsTool/es"
-	"lyods-adsTool/pkg/constants"
-	"lyods-adsTool/services/bitcoin"
 	"lyods-adsTool/services/list"
-	"time"
 )
 
 func main() {
@@ -16,6 +13,12 @@ func main() {
 		log.Fatalf("Failed to create Elasticsearch client: %v\n", err)
 		return
 	}
+	//str, err := utils.DateChange("08 Apr 2011")
+	//if err != nil {
+	//	log.Fatalf("Failed to create Elasticsearch client: %v\n", err)
+	//	return
+	//}
+	//fmt.Println(str)
 	//删除索引
 	//deleteIndex(esClient, constants.ES_ADDRESS)
 	//deleteIndex(esClient, constants.ES_TRANSACTION)
@@ -24,20 +27,20 @@ func main() {
 	//createIndex(esClient, constants.ES_ADDRESS, constants.ADDR_MAPPING)
 	//createIndex(esClient, constants.ES_TRANSACTION, constants.TRANS_MAPPING)
 	//createIndex(esClient, constants.ES_ENTITY, constants.ENTITY_MAPPING)
-	bitClient := bitcoin.BitClient{
-		RequestCount:    0,
-		LastRequestTime: time.Now(),
-	}
+	//bitClient := bitcoin.BitClient{
+	//	RequestCount:    0,
+	//	LastRequestTime: time.Now(),
+	//}
 	// 获取风险名单信息
-	if err := list.GetAddrListByJSONOnBitcoin(constants.OPENSANCTIONS_URL, &bitClient, esClient); err != nil {
-		log.Printf("Failed to get risk list from JSON source: %v\n", err)
-	}
+	//if err := list.GetAddrListByJSONOnBitcoin(constants.OPENSANCTIONS_URL, &bitClient, esClient); err != nil {
+	//	log.Printf("Failed to get risk list from JSON source: %v\n", err)
+	//}
 	//if err := list.GetAddrListOnCsv(constants.UNISWAP_URL, esClient); err != nil {
 	//	log.Printf("Failed to get risk list from CSV source: %v\n", err)
 	//}
-	//if err := list.GetAddrListOnXmlByElement(`D:\Code\GoProjec\lyods-adsTool\sdn.xml`, esClient); err != nil {
-	//	log.Printf("Failed to get risk list from XML source: %v\n", err)
-	//}
+	if err := list.GetAddrListOnXmlByElement(`D:\Code\GoProjec\lyods-adsTool\sdn.xml`, esClient); err != nil {
+		log.Printf("Failed to get risk list from XML source: %v\n", err)
+	}
 	//dbClient := db.GetDb()
 	//defer dbClient.Close()
 	////添加更新记录
@@ -66,8 +69,8 @@ func main() {
 	//if err != nil {
 	//	log.Printf("Failed to add sdn record: %v\n", err)
 	//}
-	//ethClient := ethereum.EthClient{
-	//	ethereum.CreateEthClient(),
+	//ethClient := eth.EthClient{
+	//	eth.CreateEthClient(),
 	//}
 	//blockNumber, err := ethClient.GetLatestBlockNumber()
 	//if err != nil {
@@ -100,7 +103,7 @@ func main() {
 func createIndex(client *es.ElasticClient, indexName, mapping string) {
 	err := es.CreateIndex(client, indexName, mapping)
 	if err != nil {
-		log.Printf("Failed to create index %s: %v\n", indexName, err)
+		log.Fatalf("Failed to create index %s: %v\n", indexName, err)
 	} else {
 		log.Printf("Index '%s' created successfully.\n", indexName)
 	}

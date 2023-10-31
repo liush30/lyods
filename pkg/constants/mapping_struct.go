@@ -46,7 +46,8 @@ const ADDR_MAPPING = `
                         "type":"text"
                     },
                     "time":{
-                        "type":"date"
+                       "type": "date",
+                      "format": "yyyy-MM-dd HH:mm:ss"
                     },
                     "dsRules":{
                         "type":"text",
@@ -80,8 +81,9 @@ const ADDR_MAPPING = `
             "riskChgHistory":{
                 "type":"nested",
                 "properties":{
-                    "dateOfBirth":{
-                        "type":"date"
+                    "dateOfChange":{
+                        "type": "date",
+                      "format": "yyyy-MM-dd"
                     },
                     "riskLevel":{
                         "type":"short"
@@ -104,6 +106,21 @@ const TRANS_MAPPING = `
             "hash":{
                 "type":"keyword"
             },
+			"chain":{
+				"type":"keyword"
+			},
+			"inputCount":{
+				"type":"short"
+			},
+			"inputValue":{
+				"type":"double"
+			},
+			"outputCount":{
+				"type":"short"
+			},
+			"outputValue":{
+				"type":"double"
+			},
             "riskLevel":{
                 "type":"short"
             },
@@ -156,7 +173,8 @@ const TRANS_MAPPING = `
                 "type":"boolean"
             },
             "time":{
-                "type":"long"
+                 "type": "date",
+              "format": "yyyy-MM-dd HH:mm:ss"
             },
             "blockHeight":{
                 "type":"text"
@@ -165,8 +183,11 @@ const TRANS_MAPPING = `
                 "type":"text"
             },
             "value":{
-                "type":"long"
+                "type":"double"
             },
+			"valueText":{
+				"type":"text"
+			},
             "inputs":{
                 "type":"nested",
                 "properties":{
@@ -189,8 +210,11 @@ const TRANS_MAPPING = `
                         "type":"text"
                     },
                     "value":{
-                        "type":"long"
-                    }
+                        "type":"double"
+                    },
+                    "valueText":{
+				       "type":"text"
+			         }
                 }
             },
             "out":{
@@ -200,8 +224,11 @@ const TRANS_MAPPING = `
                         "type":"boolean"
                     },
                     "value":{
-                        "type":"long"
+                        "type":"double"
                     },
+					"valueText":{
+						"type":"text"
+					},
                     "n":{
                         "type":"long"
                     },
@@ -238,10 +265,13 @@ const TRANS_MAPPING = `
                         "type":"text"
                     },
                     "value":{
-                        "type":"long"
+                        "type":"double"
                     },
+					"valueText":{
+						"type":"text"
+					},
                     "subTraces":{
-                        "type":"long"
+                        "type":"short"
                     },
                     "callType":{
                         "type":"keyword"
@@ -271,6 +301,7 @@ const TRANS_MAPPING = `
                 }
             },
             "erc20Txn":{
+                "type":"nested",
                 "properties":{
                     "fromAddr":{
                         "type":"keyword"
@@ -282,8 +313,11 @@ const TRANS_MAPPING = `
                         "type":"keyword"
                     },
                     "amount":{
-                        "type":"long"
-                    }
+                        "type":"double"
+                    },
+					"amountText":{
+						"type":"text"
+					}
                 }
             },
             "rules":{
@@ -297,8 +331,9 @@ const TRANS_MAPPING = `
             "riskChgHistory":{
                 "type":"nested",
                 "properties":{
-                    "dateOfBirth":{
-                        "type":"date"
+                    "dateOfChange":{
+                         "type": "date",
+                      "format": "yyyy-MM-dd"
                     },
                     "riskLevel":{
                         "type":"short"
@@ -364,14 +399,15 @@ const ENTITY_MAPPING = `
         "type": "nested",
         "properties": {
           "dateOfBirth": {
-            "type": "text"
+             "type": "date",
+            "format": "yyyy-MM-dd"
           },
           "mainEntry": {
             "type": "boolean"
           }
         }
       },
-      "placeOfBirth": {
+      "placeOfBirthList": {
         "type": "nested",
         "properties": {
           "placeOfBirth": {
@@ -422,10 +458,12 @@ const ENTITY_MAPPING = `
             "type": "keyword"
           },
           "issueDate": {
-            "type": "text"
+             "type": "date",
+             "format": "yyyy-MM-dd"
           },
           "expirationDate": {
-            "type": "text"
+             "type": "date",
+            "format": "yyyy-MM-dd"
           }
         }
       },
@@ -455,7 +493,8 @@ const ENTITY_MAPPING = `
         }
       },
       "orgEstDate": {
-        "type": "text"
+         "type": "date",
+         "format": "yyyy-MM-dd"
       },
       "otherInfo": {
         "type": "nested",
@@ -479,8 +518,9 @@ const ENTITY_MAPPING = `
             "riskChgHistory":{
                 "type":"nested",
                 "properties":{
-                    "dateOfBirth":{
-                        "type":"date"
+                    "dateOfChange":{
+                         "type": "date",
+                         "format": "yyyy-MM-dd HH:mm:ss"
                     },
                     "riskLevel":{
                         "type":"short"

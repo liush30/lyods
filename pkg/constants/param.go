@@ -54,3 +54,10 @@ const (
 const (
 	ABI_NO = "Contract source code not verified"
 )
+
+const (
+	ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+)
+const (
+	DB_CHAIN_ETH = "ethereum"
+)

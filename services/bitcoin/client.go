@@ -32,13 +32,13 @@ func (client *BitClient) CheckRequestStatus() {
 // SendHTTPRequest 根据指定的url发送http请求
 func (client *BitClient) SendHTTPRequest(httpclient *http.Client, url string) (*http.Response, error) {
 	client.CheckRequestStatus()
-	fmt.Println(url)
 	resp, err := httpclient.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("send http request error:%v", err)
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("status code is %s", strconv.Itoa(resp.StatusCode))
 	}
+	client.AddReqCount()
 	return resp, nil
 }
 

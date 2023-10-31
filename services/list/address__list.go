@@ -15,6 +15,7 @@ import (
 	"lyods-adsTool/pkg/constants"
 	"lyods-adsTool/pkg/utils"
 	"lyods-adsTool/services/bitcoin"
+	"lyods-adsTool/services/eth"
 	"os"
 	"regexp"
 	"strconv"
@@ -76,7 +77,7 @@ func GetAddrListByJSONOnBitcoin(url string, bitClient *bitcoin.BitClient, c *es.
 				DsAddr:     url,
 				DsType:     constants.DS_OPENSANCTIONS,
 				Illustrate: "Suspected extortion through" + family,
-				Time:       time.Now(),
+				Time:       time.Now().Format(time.DateTime),
 			}
 			//判断该风险地址是否已经存在，若该地址已经存在，则更新地址来源
 			if isExist {
@@ -112,7 +113,7 @@ func GetAddrListByJSONOnBitcoin(url string, bitClient *bitcoin.BitClient, c *es.
 					log.Fatal("Fail get tx list on btc:", err.Error())
 					return
 				}
-				bitClient.AddReqCount()
+				//bitClient.AddReqCount()
 				pageNum := 1
 				//若pageTotal>1,则继续查询后续交易信息
 				if pageTotal > 1 {
@@ -139,7 +140,7 @@ func GetAddrListByJSONOnBitcoin(url string, bitClient *bitcoin.BitClient, c *es.
 // 检查请求状态
 
 // GetAddrListOnCsv 根据url获得csv格式的地址名单-批量获取address,获取index列的数据
-func GetAddrListOnCsv(url string, c *es.ElasticClient) error {
+func GetAddrListOnCsv(url string, c *es.ElasticClient, e *eth.EthClient) error {
 	var err error
 	//风险地址名单
 	//var addrList []domain.WalletAddr
@@ -180,24 +181,23 @@ func GetAddrListOnCsv(url string, c *es.ElasticClient) error {
 			isExist, err := c.IsExistById(constants.ES_ADDRESS, addrStr)
 			if err != nil {
 				log.Printf("IsExistById Error :%v\n", err.Error())
-				continue
+				return fmt.Errorf("IsExistById %s Error :%v\n", addrStr, err)
 			}
 			dsAddrInfo := domain.AdsDataSource{
 				DsAddr:     url,
 				DsType:     constants.DS_UNISWAP,
 				Illustrate: category + "-" + riskType,
-				Time:       time.Now(),
+				Time:       time.Now().Format(time.DateTime),
 			}
 			//若该地址已经存在，则更新地址来源
 			if isExist {
 				//log.Printf("%s信息已存在,添加该数据来源\n", addrStr)
 				err = c.AddDsAddrSource(addrStr, dsAddrInfo)
 				if err != nil {
-					log.Println("Fail add data source:", err.Error())
-					continue
+					return fmt.Errorf("fail add %s data source:%v", addrStr, err.Error())
 				}
 			} else {
-				log.Printf("添加%s地址至风险名单信息\n", addrStr)
+				//log.Printf("添加%s地址至风险名单信息\n", addrStr)
 				//地址不存在，则新建
 				walletAddr := domain.WalletAddr{
 					WaAddr:      addrStr,
@@ -209,10 +209,19 @@ func GetAddrListOnCsv(url string, c *es.ElasticClient) error {
 					IsNeedTrace: true,
 				}
 				err = c.Insert(constants.ES_ADDRESS, addrStr, walletAddr)
-				if err != nil {
-					log.Println("Fail insert addr_list", err.Error())
-					continue
-				}
+				//if err != nil {
+				//	return fmt.Errorf("fail insert %s to addr_list:%v", addrStr, err)
+				//}
+				//_, block, err := e.GetTxListOnEth(addrStr, constants.ETH_START_BLOCK)
+				//if err != nil {
+				//	return fmt.Errorf("fail get %s tx list on eth:%v", addrStr, err)
+				//}
+				//for block == "" {
+				//	_, block, err = e.GetTxListOnEth(addrStr, constants.ETH_START_BLOCK)
+				//	if err != nil {
+				//		return fmt.Errorf("fail get %s tx list on eth:%v", addrStr, err)
+				//	}
+				//}
 			}
 		}
 	}
@@ -285,7 +294,12 @@ func GetAddrListOnXmlByElement(path string, c *es.ElasticClient) error {
 				} else if idType == constants.ORGAN_TYPE {
 					entityInfo.OrganizationType = idNumberValue //获取组织类型
 				} else if idType == constants.ORGAN_DATE { //获取机构成立时间
-					entityInfo.OrgEstDate = idNumberValue
+					dateStr, err := utils.DateChange(idNumberValue)
+					if err != nil {
+						log.Println("Organization Established Date:invalid date format", err.Error())
+						continue
+					}
+					entityInfo.OrgEstDate = dateStr
 				} else if idType == constants.OTHER_INFO1 || idType == constants.OTHER_INFO2 || idType == constants.OTHER_INFO3 { //获取其他备注信息
 					otherInfo := domain.OtherInfo{
 						Type: idType,
@@ -296,23 +310,43 @@ func GetAddrListOnXmlByElement(path string, c *es.ElasticClient) error {
 					//匹配字符串,判断是否为数据地址信息
 					isCurrency, err = regexp.MatchString(constants.CONDITION, idType)
 					if err != nil {
-						log.Fatal("字符串匹配失败，MatchString Error:", err.Error())
-						return err
+						log.Println("MatchString Error:", err.Error())
+						continue
 					}
+					expirationDateStr := elementBySdn(constants.EXPRI_DATE, id)
+					issueDateStr := elementBySdn(constants.ISSUE_DATE, id)
 					//若匹配失败，将id标签下的信息存储到ID列表中
 					if !isCurrency {
 						idInfo := domain.ID{
-							IDType:         idType,
-							IDNumber:       idNumberValue,
-							IDCountry:      elementBySdn(constants.ID_COUNTRY, id),
-							ExpirationDate: elementBySdn(constants.EXPRI_DATE, id),
-							IssueDate:      elementBySdn(constants.ISSUE_DATE, id),
+							IDType:    idType,
+							IDNumber:  idNumberValue,
+							IDCountry: elementBySdn(constants.ID_COUNTRY, id),
+						}
+						if expirationDateStr != "" {
+							expirationDateStr, err = utils.DateChange(expirationDateStr)
+							if err != nil {
+								log.Println("Expiration Date:invalid date format", err.Error())
+								continue
+							}
+							idInfo.ExpirationDate = expirationDateStr
+						}
+						if issueDateStr != "" {
+							issueDateStr, err = utils.DateChange(issueDateStr)
+							if err != nil {
+								log.Println("Issue Date:invalid date format", err.Error())
+								continue
+							}
+							idInfo.IssueDate = issueDateStr
 						}
 						idInfoList = append(idInfoList, idInfo)
 						//数据匹配成功
 					} else {
 						//获取entity其他信息
-						getEntityInfo(sdnEntry, &entityInfo)
+						err = getEntityInfo(sdnEntry, &entityInfo)
+						if err != nil {
+							log.Println("getEntityInfo Error:", err.Error())
+							continue
+						}
 						//截取数据：所在链，以及地址,存储到地址风险名单中
 						//根据货币名称获取所在链
 						chain := getChainBySdn(idType)
@@ -327,7 +361,7 @@ func GetAddrListOnXmlByElement(path string, c *es.ElasticClient) error {
 							DsAddr:     constants.DSADDR_SDN,
 							DsType:     constants.DS_OFAC,
 							Illustrate: "Derived from the OFAC Sanctions List.",
-							Time:       time.Now(),
+							Time:       time.Now().Format(time.DateTime),
 						}
 						//若该地址已经存在，则增加地址来源
 						if isExist {
@@ -375,7 +409,7 @@ func GetAddrListOnXmlByElement(path string, c *es.ElasticClient) error {
 }
 
 // 根据指定的element存储sdn名单上的entity信息
-func getEntityInfo(sdnEntry *etree.Element, entityInfo *domain.Entity) {
+func getEntityInfo(sdnEntry *etree.Element, entityInfo *domain.Entity) error {
 	var akaName, otherAddress []string
 	var addrInfoList []domain.AddressList   //地址列表
 	var daBiList []domain.DateOfBirth       //出生日期列表
@@ -430,9 +464,13 @@ func getEntityInfo(sdnEntry *etree.Element, entityInfo *domain.Entity) {
 	if dateOfBirthList := sdnEntry.SelectElement("dateOfBirthList"); dateOfBirthList != nil {
 		for _, dateOfBirthItem := range dateOfBirthList.SelectElements("dateOfBirthItem") {
 			dateOfBirth := dateOfBirthItem.SelectElement("dateOfBirth").Text()
+			formatDate, err := utils.DateChange(dateOfBirth)
+			if err != nil {
+				return fmt.Errorf("dateOfBirth invalid date format: %s", dateOfBirth)
+			}
 			mainEntryStr := dateOfBirthItem.SelectElement("mainEntry").Text()
 			daBi := domain.DateOfBirth{
-				DateOfBirth: dateOfBirth,
+				DateOfBirth: formatDate,
 				MainEntry:   mainEntryStr == "true",
 			}
 			daBiList = append(daBiList, daBi)
@@ -451,7 +489,7 @@ func getEntityInfo(sdnEntry *etree.Element, entityInfo *domain.Entity) {
 			plBiList = append(plBiList, plBi)
 		}
 	}
-	entityInfo.PlaceOfBirth = plBiList
+	entityInfo.PlaceOfBirthList = plBiList
 	// 获取国籍列表信息
 	if nationalityList := sdnEntry.SelectElement("nationalityList"); nationalityList != nil {
 		for _, nationality := range nationalityList.SelectElements("nationality") {
@@ -478,6 +516,7 @@ func getEntityInfo(sdnEntry *etree.Element, entityInfo *domain.Entity) {
 		}
 	}
 	entityInfo.CitizenshipList = czList
+	return nil
 }
 
 // 解析sdn名单中地址对应的链

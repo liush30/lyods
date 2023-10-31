@@ -57,3 +57,45 @@ func RandomSleep() {
 	time.Sleep(time.Duration(randomSleepSeconds) * time.Second)
 	log.Println("Sleep", randomSleepSeconds, "s......")
 }
+
+// IsTimeAfter 判断是否晚于某个时间
+func IsTimeAfter(targetHour, targetMinute int) bool {
+	now := time.Now()
+	targetTime := time.Date(now.Year(), now.Month(), now.Day(), targetHour, targetMinute, 0, 0, now.Location())
+
+	return now.After(targetTime)
+}
+func DateChange(inputDate string) (string, error) {
+	if inputDate == "" {
+		return "", nil
+	}
+	// 使用指定格式解析日期字符串
+	parsedDate, err := parseDate(inputDate)
+	if err != nil {
+		return "", fmt.Errorf("invalid date format: %s", inputDate)
+	}
+	// 格式化日期为 "yyyy-MM-dd" 格式
+	formattedDate := parsedDate.Format("2006-01-02")
+	return formattedDate, nil
+}
+func parseDate(dateString string) (time.Time, error) {
+	// 尝试不同的日期解析格式
+	formats := []string{"2006", "Jan 2006", "02 Jan 2006", "02 Jan 2006 to 02 Jan 2006"}
+	var parsedDate time.Time
+	var err error
+
+	for _, format := range formats {
+		parsedDate, err = time.Parse(format, dateString)
+		if err == nil {
+			break
+		}
+	}
+
+	return parsedDate, err
+}
+
+func UnixToTime(unixTime int64) string {
+	//return time.Unix(unixTime, 0).Format(time.RFC3339)
+	return time.Unix(unixTime, 0).Format(time.DateTime)
+
+}
