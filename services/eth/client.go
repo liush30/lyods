@@ -126,10 +126,12 @@ func (e *EthClient) GetContractAbiOnEth(addr string) (string, error) {
 	}
 	return abi, nil
 }
+
+// CallContractMethod 调用
 func (e *EthClient) CallContractMethod(contractAddress string, contractABIJSON string, methodName string, args ...interface{}) ([]interface{}, error) {
 	// 创建合约地址
 	contractAddressObj := common.HexToAddress(contractAddress)
-
+	var msg ethereum.CallMsg
 	// 创建ABI对象（使用合约的ABI定义）
 	contractABI, err := abi.JSON(strings.NewReader(contractABIJSON))
 	if err != nil {
@@ -145,12 +147,10 @@ func (e *EthClient) CallContractMethod(contractAddress string, contractABIJSON s
 	if err != nil {
 		return nil, fmt.Errorf("pack error :%v\n", err.Error())
 	}
-
-	msg := ethereum.CallMsg{
+	msg = ethereum.CallMsg{
 		To:   &contractAddressObj,
 		Data: callData,
 	}
-
 	// 执行调用
 	callResult, err := e.CallContract(context.Background(), msg, nil)
 	if err != nil {
@@ -162,3 +162,43 @@ func (e *EthClient) CallContractMethod(contractAddress string, contractABIJSON s
 	}
 	return resultInterface, nil
 }
+
+// CallContractMethod 调用
+//func (e *EthClient) CallContractMethod(msg ethereum.CallMsg) ([]interface{}, error) {
+//	// 创建合约地址
+//	// 执行调用
+//	callResult, err := e.CallContract(context.Background(), msg, nil)
+//	if err != nil {
+//		return nil, fmt.Errorf("call error :%v\n", err.Error())
+//	}
+//	resultInterface, err := contractABI.Unpack(methodName, callResult)
+//	if err != nil {
+//		return nil, fmt.Errorf("unpack error :%v\n", err.Error())
+//	}
+//	return resultInterface, nil
+//}
+//func GetCallMsgABI(contractAddress string, contractABIJSON string, methodName string, args ...interface{}) (ethereum.CallMsg, error) {
+//	contractAddressObj := common.HexToAddress(contractAddress)
+//	contractABI, err := abi.JSON(strings.NewReader(contractABIJSON))
+//	if err != nil {
+//		return ethereum.CallMsg{}, fmt.Errorf("abi error :%v\n", err.Error())
+//	}
+//	var callData []byte
+//	if len(args) != 0 {
+//		callData, err = contractABI.Pack(methodName, args)
+//	} else {
+//		callData, err = contractABI.Pack(methodName)
+//	}
+//	// 调用查询方法
+//	if err != nil {
+//		return ethereum.CallMsg{}, fmt.Errorf("pack error :%v\n", err.Error())
+//	}
+//	msg := ethereum.CallMsg{
+//		To:   &contractAddressObj,
+//		Data: callData,
+//	}
+//	return msg, nil
+//}
+//func GetCallMsg(contractAddress string) {
+//
+//}

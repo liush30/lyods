@@ -24,12 +24,12 @@ func AddToken(db *sql.DB, token domain.Token) (int64, error) {
 	return count, nil
 }
 
-// 判断合约地址是否为erc20合约地址
-func existsToken(db *sql.DB, contractAddress, blockchain string) (bool, error) {
+// ExistsToken 判断合约地址是否是存储于数据库中的erc20合约地址
+func ExistsToken(db *sql.DB, contractAddress, blockchain string) (bool, error) {
 	querySQL := `
         SELECT COUNT(*)
         FROM t_token
-        WHERE CONTRACT_ADDRESS = ? AND BLOCKCHAIN = ?
+        WHERE CONTRACT_ADDRESS = ? AND CHAIN = ?
     `
 	var count int
 	err := db.QueryRow(querySQL, contractAddress, blockchain).Scan(&count)
@@ -39,17 +39,27 @@ func existsToken(db *sql.DB, contractAddress, blockchain string) (bool, error) {
 	return count > 0, nil
 }
 
-// GetTokenByContractAddress 根据CONTRACT_ADDRESS查询信息
-func GetTokenByContractAddress(db *sql.DB, contractAddress string) ([]byte, error) {
-	return nil, nil
+// QueryAbiAndCheckByAddress 根据合约地址查询abi信息,以及记录count数
+func QueryAbiAndCheckByAddress(db *sql.DB, contractAddress, chain string) (int, string, int, error) {
+	querySQL := `SELECT COUNT(*) AS count,MAX(abi) AS abi,MAX(DECIMALS) AS decimals FROM t_token
+WHERE contract_address = ? AND chain = ?;`
+	var count int
+	var abi string
+	var decimals int
+	err := db.QueryRow(querySQL, contractAddress, chain).Scan(&count, &abi, &decimals)
+	if err != nil {
+		return 0, "", 0, fmt.Errorf("query from t_token abi info error: %v", err)
+	}
+	return count, abi, decimals, nil
 }
+
 func GetContractAddressAll(db *sql.DB, chain string) ([]string, error) {
 	var contractAddresses []string
 
 	// 使用占位符来构建 SQL 查询，以避免 SQL 注入风险
 	var sql string
 	if chain != "" {
-		sql = "SELECT CONTRACT_ADDRESS FROM t_token WHERE CHAIN = ?"
+		sql = "SELECT CONTRACT_ADDRESS FROM t_token WHERE CHAIN = ?  and ABI is  null"
 	} else {
 		sql = "SELECT CONTRACT_ADDRESS FROM t_token"
 	}

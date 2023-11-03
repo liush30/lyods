@@ -21,6 +21,12 @@ import (
 	"strings"
 )
 
+type ContractMap struct {
+	ABI     string
+	IsErc20 bool
+	Decimal int
+}
+
 // GetTxListOnEth 查询指定外部账户的所有交易信息
 func (e *EthClient) GetTxListOnEth(addr, startBlock string, c *es.ElasticClient) ([]domain.EsTrans, string, error) {
 	// 获取URL以获取指定账户的所有交易信息
@@ -29,18 +35,18 @@ func (e *EthClient) GetTxListOnEth(addr, startBlock string, c *es.ElasticClient)
 	// 发送HTTP请求
 	resp, err := e.SendHTTPRequest(url)
 	if err != nil {
-		return nil, "", fmt.Errorf("request error: %v", err)
+		return nil, "", fmt.Errorf("GetTxListOnEth request error: %v", err)
 	}
 	defer resp.Body.Close()
 
 	// 读取响应数据
 	body, err := io.ReadAll(resp.Body)
 	if err != nil || body == nil {
-		return nil, "", fmt.Errorf("io read error: %v", err)
+		return nil, "", fmt.Errorf("GetTxListOnEth io read error: %v", err)
 	}
 
 	taskList := make([]domain.EsTrans, 0)
-	contractAbiMap := make(map[common.Address][]byte)
+	contractAbiMap := make(map[common.Address]ContractMap)
 	hashCount := 0        //记录获取的交易总量
 	lastBlockNumber := "" //最后一个交易的区块数
 
@@ -69,7 +75,7 @@ func (e *EthClient) GetTxListOnEth(addr, startBlock string, c *es.ElasticClient)
 		db := db.GetDb()
 		defer db.Close()
 
-		// 获取交易内日志信息
+		// 获取交易内日志信息和交易内部erc20转账交易
 		logs, err := e.ParseTransReceiptByHash(db, trans.Hash, &contractAbiMap)
 		if err != nil {
 			log.Printf("Error parsing transaction receipt: %v", err)
@@ -99,122 +105,6 @@ func (e *EthClient) GetTxListOnEth(addr, startBlock string, c *es.ElasticClient)
 
 	return taskList, lastBlockNumber, nil
 }
-
-// 处理交易基本信息，将信息存储与EsTrans中并返回
-//func processTrans(value []byte, addr string) (domain.EsTrans, error) {
-//	if len(value) == 0 {
-//		return domain.EsTrans{}, errors.New("VALUE_IS_NIL")
-//	}
-//	var trans domain.EsTrans
-//	var err error
-//
-//	toAddress, err := jsonparser.GetString(value, constants.TO_KEY)
-//	if err != nil {
-//		return trans, fmt.Errorf("FAILED_TO_GET_'%s'_ADDRESS: %v", constants.TO_KEY, err)
-//	}
-//	transHash, err := jsonparser.GetString(value, constants.HASH_KEY)
-//	if err != nil {
-//		return trans, fmt.Errorf("FAILED_TO_GET_'%s': %v", constants.HASH_KEY, err)
-//	}
-//	transGas, err := jsonparser.GetString(value, constants.GAS_USED_KEY)
-//	if err != nil {
-//		return trans, fmt.Errorf("FAILED_TO_GET_'%s': %v", constants.GAS_USED_KEY, err)
-//	}
-//	transIsError, err := jsonparser.GetString(value, constants.IS_ERROR_KEY)
-//	if err != nil {
-//		return trans, fmt.Errorf("FAILED_TO_GET_'%s': %v", constants.IS_ERROR_KEY, err)
-//	}
-//	transContractAddress, err := jsonparser.GetString(value, constants.CONTRACT_ADDR_KEY)
-//	if err != nil {
-//		return trans, fmt.Errorf("FAILED_TO_GET_'%s'_ADDRESS: %v", constants.CONTRACT_ADDR_KEY, err)
-//	}
-//	transFunName, err := jsonparser.GetString(value, constants.FUNCTION_NAME_KEY)
-//	if err != nil {
-//		return trans, fmt.Errorf("FAILED_TO_GET_'%s': %v", constants.FUNCTION_NAME_KEY, err)
-//	}
-//	transMethodId, err := jsonparser.GetString(value, constants.METHOD_ID_KEY)
-//	if err != nil {
-//		return trans, fmt.Errorf("FAILED_TO_GET_'%s': %v", constants.METHOD_ID_KEY, err)
-//	}
-//	transConfirm, err := jsonparser.GetString(value, constants.CONFIRMATIONS_KEY)
-//	if err != nil {
-//		return trans, fmt.Errorf("FAILED_TO_GET_'%s': %v", constants.CONFIRMATIONS_KEY, err)
-//	}
-//	transCumlGasUsed, err := jsonparser.GetString(value, constants.CUMULATIVE_GAS_USED_KEY)
-//	if err != nil {
-//		return trans, fmt.Errorf("FAILED_TO_GET_'%s': %v", constants.CUMULATIVE_GAS_USED_KEY, err)
-//	}
-//	transPrice, err := jsonparser.GetString(value, constants.GAS_PRICE_KEY)
-//	if err != nil {
-//		return trans, fmt.Errorf("FAILED_TO_GET_'%s': %v", constants.GAS_PRICE_KEY, err)
-//	}
-//	transTimeStr, err := jsonparser.GetString(value, constants.TIME_STAMP_KEY)
-//	if err != nil {
-//		return trans, fmt.Errorf("FAILED_TO_GET_'%s': %v", constants.TIME_STAMP_KEY, err)
-//	}
-//	transTime, err := strconv.Atoi(transTimeStr)
-//	if err != nil {
-//		return trans, fmt.Errorf("TIME_STAMP:FAIL_STRING_TO_INT: %v", err)
-//	}
-//	transBlockNumer, err := jsonparser.GetString(value, constants.BLOCK_NUMBER_KEY)
-//	if err != nil {
-//		return trans, fmt.Errorf("FAILED_TO_GET_'%s': %v", constants.BLOCK_NUMBER_KEY, err)
-//	}
-//	transBlockHash, err := jsonparser.GetString(value, constants.BLOCK_HASH_KEY)
-//	if err != nil {
-//		return trans, fmt.Errorf("FAILED_TO_GET_'%s': %v", constants.BLOCK_HASH_KEY, err)
-//	}
-//	transIndex, err := jsonparser.GetString(value, constants.TRANSACTION_INDEX_KEY)
-//	if err != nil {
-//		return trans, fmt.Errorf("FAILED_TO_GET_'%s': %v", constants.TRANSACTION_INDEX_KEY, err)
-//	}
-//	fromAddress, err := jsonparser.GetString(value, constants.FROM_KEY)
-//	if err != nil {
-//		return trans, fmt.Errorf("FAILED_TO_GET_'%s'_ADDRESS: %v", constants.FROM_KEY, err)
-//	}
-//
-//	var transValueVal big.Int
-//	valueBytes, _, _, err := jsonparser.Get(value, constants.VALUE_KEY)
-//	if err != nil {
-//		return trans, fmt.Errorf("FAILED_TO_GET_'%s': %v", constants.VALUE_KEY, err)
-//	}
-//	if _, ok := transValueVal.SetString(string(valueBytes), 0); !ok {
-//		return trans, errors.New("FAILED_TO_CONVERT_'value'_TO_BIG_INT")
-//	}
-//	transInput, err := jsonparser.GetString(value, constants.INPUT_KEY)
-//	if err != nil {
-//		return trans, fmt.Errorf("FAILED_TO_GET_'%s': %v", constants.INPUT_KEY, err)
-//	}
-//
-//	return domain.EsTrans{
-//		Hash:              transHash,
-//		Address:           addr,
-//		GasUsed:           transGas,
-//		IsError:           transIsError,
-//		ContractAddress:   transContractAddress,
-//		FunctionName:      transFunName,
-//		MethodId:          transMethodId,
-//		Confirmations:     transConfirm,
-//		CumulativeGasUsed: transCumlGasUsed,
-//		GasPrice:          transPrice,
-//		TxIndex:           transIndex,
-//		Time:              int64(transTime),
-//		BlockHeight:       transBlockNumer,
-//		BlockHash:         transBlockHash,
-//		Value:             transValueVal,
-//		Inputs: []domain.InputsTrans{
-//			{
-//				Witness: transInput, // 判断转账地址是否为合约地址，如果input值为0x，则说明该转账对象为普通地址。
-//				Addr:    fromAddress,
-//			},
-//		},
-//		Out: []domain.OutTrans{
-//			{
-//				Addr: toAddress,
-//			},
-//		},
-//	}, nil
-//}
 
 // 处理交易基本信息，将信息存储于 EsTrans 中并返回
 func processTrans(value []byte, addr string) (domain.EsTrans, error) {
@@ -259,10 +149,18 @@ func processTrans(value []byte, addr string) (domain.EsTrans, error) {
 		switch v := f.field.(type) {
 		case *string:
 			*v = val
-		case *big.Int:
-			if _, ok := v.SetString(val, 0); !ok {
-				return trans, fmt.Errorf("failed to convert '%s' to big int", key)
+		case *float64:
+			// 将值转换为 *big.Int
+			intVal, success := new(big.Int).SetString(val, 10)
+			if !success {
+				return trans, fmt.Errorf("failed to convert '%s' to *big.Int", key)
 			}
+
+			// 调用 WeiToEth 函数将 *big.Int 转换为 *big.Float
+			floatVal := WeiToEth(intVal)
+			*v, _ = floatVal.Float64()
+			// 设置 *big.Float 值
+			trans.ValueText = floatVal.String()
 		case *int64: // 处理 int64 类型字段
 			intVal, err := strconv.ParseInt(val, 10, 64)
 			if err != nil {
@@ -329,64 +227,6 @@ func GetTraceTransaction(hash string) ([]domain.InternalTxn, error) {
 	}
 	return iTxList, nil
 }
-
-//// 解析交易内部trace交易信息
-//func processTraceTrans(value []byte) (domain.InternalTxn, error) {
-//	callType, err := jsonparser.GetString(value, "action", "callType")
-//	if err != nil {
-//		return domain.InternalTxn{}, utils.HandleError(err, "Fail get callType")
-//	}
-//	utils.IsErrorFloat(err, "Fail get callType")
-//	fromAddress, err := jsonparser.GetString(value, "action", "from")
-//	if err != nil {
-//		return domain.InternalTxn{}, utils.HandleError(err, "Fail get from")
-//	}
-//	toAddress, err := jsonparser.GetString(value, "action", "to")
-//	if err != nil {
-//		return domain.InternalTxn{}, utils.HandleError(err, "Fail get to")
-//	}
-//	valueVal, err := jsonparser.GetString(value, "action", "value")
-//	if err != nil {
-//		return domain.InternalTxn{}, utils.HandleError(err, "Fail get value")
-//	}
-//	input, err := jsonparser.GetString(value, "action", "input")
-//	if err != nil {
-//		return domain.InternalTxn{}, utils.HandleError(err, "Fail get input")
-//	}
-//	output, err := jsonparser.GetString(value, "result", "output")
-//	if err != nil {
-//		return domain.InternalTxn{}, utils.HandleError(err, "Fail get output")
-//	}
-//	traceBytes, _, _, err := jsonparser.Get(value, "traceAddress")
-//	if err != nil {
-//		return domain.InternalTxn{}, utils.HandleError(err, "Fail get traceAddress")
-//	}
-//	var traceInts []int64
-//	err = json.Unmarshal(traceBytes, &traceInts)
-//	if err != nil {
-//		return domain.InternalTxn{}, utils.HandleError(err, "Fail get traceAddress")
-//	}
-//	subtraces, err := jsonparser.GetInt(value, "subtraces")
-//	if err != nil {
-//		return domain.InternalTxn{}, utils.HandleError(err, "Fail get subtraces")
-//	}
-//	valueInt, err := utils.HexToBigInt(valueVal)
-//	if err != nil {
-//		return domain.InternalTxn{}, utils.HandleError(err, "Fail hex to big int")
-//	}
-//	//traceInts := utils.BytesToInt64Slice(traceBytes)
-//	return domain.InternalTxn{
-//		CallType:     callType,
-//		FromAddr:     fromAddress,
-//		ToAddr:       toAddress,
-//		Value:        *valueInt,
-//		InputTx:      input,
-//		OutputTx:     output,
-//		TraceAddress: traceInts,
-//		SubTraces:    subtraces,
-//		Id:           utils.GenerateTransactionID("call_", traceInts),
-//	}, nil
-//}
 
 // 解析交易内部trace交易信息
 func processTraceTrans(value []byte) (domain.InternalTxn, error) {

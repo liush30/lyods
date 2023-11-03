@@ -70,7 +70,9 @@ func (e *EthClient) GetERC20TokenBalanceChange(tokenContractAddress string, acco
 		log.Println("Fail get before balance:", err.Error())
 		return nil, err
 	}
-	//查询在blockNumber后账户的余额
+	//查询在blockNumber后
+	//
+	//账户的余额
 	balanceAfter, err := e.GetERC20TokenBalance(tokenContractAddress, accountAddress, blockNumber)
 	if err != nil {
 		log.Println("Fail get after balance:", err.Error())

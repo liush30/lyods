@@ -95,7 +95,14 @@ func parseDate(dateString string) (time.Time, error) {
 }
 
 func UnixToTime(unixTime int64) string {
-	//return time.Unix(unixTime, 0).Format(time.RFC3339)
-	return time.Unix(unixTime, 0).Format(time.DateTime)
+	// 将时间戳转换为时间对象
+	utcTime := time.Unix(unixTime, 0)
 
+	// 指定时区为 UTC
+	utcLocation := time.UTC
+	utcTime = utcTime.In(utcLocation)
+
+	// 格式化时间为字符串
+	utcFormattedTime := utcTime.Format(time.RFC3339)
+	return utcFormattedTime
 }

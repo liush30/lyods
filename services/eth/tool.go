@@ -1,16 +1,81 @@
 package eth
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"log"
+	"lyods-adsTool/config"
 	"lyods-adsTool/domain"
+	"lyods-adsTool/pkg/constants"
 	"lyods-adsTool/pkg/utils"
 	"math/big"
 	"strconv"
 )
+
+// InternalTxnParam InternalTxn解析参数
+type InternalTxnParam struct {
+	eventName                 string                       //事件名称
+	contractAddress           string                       //合约地址
+	eventNameToValueByAddress map[string]map[string]string //事件相关参数信息
+	blockNumber               *big.Int                     //区块高度
+	isErc20                   bool                         //是否为erc20
+	length                    int                          //参数个数
+	token                     string                       //token name
+	tokenDecimal              int                          //token decimal
+	//internalTxn *domain.InternalTxn,
+}
+
+// getNormalTransUrl 返回etherScan中查询指定地址的普通交易信息列表Url
+func getNormalTransUrl(addr string) string {
+	return constants.API_ETH_TRANS + addr
+}
+
+func getTraceTransactionUrl() string {
+	return constants.URL_CHAINBASE + config.CHAINBASE_KEY
+}
+
+// IsContractAddress 判断地址是否为合约地址-以太坊
+func (e *EthClient) IsContractAddress(addressStr string) (bool, error) {
+	var address common.Address
+	//获取字节码信息
+	bytecode, err := e.CodeAt(context.Background(), address, nil)
+	if err != nil {
+		log.Println("Fail get byte code:", err)
+		return false, err
+	}
+	//bytecode>0，说明是合约地址
+	return len(bytecode) > 0, nil
+}
+func WeiToEth(wei *big.Int) *big.Float {
+	// 创建一个 big.Float 类型的值，用于表示 ETH
+	eth := new(big.Float)
+
+	// 创建一个 big.Int 类型的值，表示 10^18（1 ETH 对应的 wei 数量）
+	weiPerEth := new(big.Int)
+	weiPerEth.Exp(big.NewInt(10), big.NewInt(18), nil)
+
+	// 将 wei 转换为 ETH
+	eth.SetPrec(256) // 设置精度，可根据需要调整
+	eth.SetInt(wei)
+	eth.Quo(eth, new(big.Float).SetInt(weiPerEth))
+
+	return eth
+}
+func ConvertTokenValue(value *big.Int, decimal int) float64 {
+	scale := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimal)), nil)
+	valueInDecimal := new(big.Float).SetInt(value)
+	scaleInDecimal := new(big.Float).SetInt(scale)
+	result := new(big.Float).Quo(valueInDecimal, scaleInDecimal)
+	f, _ := result.Float64()
+	return f
+}
+func IsAddressEmpty(address string) bool {
+	return address == constants.ZERO_ADDRESS
+}
 
 // convertDataItem 据数据项的类型执行不同的转换
 func interfaceToData(dataItem interface{}, dataType string) (string, bool) {
@@ -106,4 +171,9 @@ func mapToTopicsValStruct(topics map[string]string) []domain.TopicsValStruct {
 		resultList = append(resultList, topicsValStruct)
 	}
 	return resultList
+}
+
+// GetLastBlockNumber 获取上一个区块号
+func GetLastBlockNumber(blockNumber *big.Int) *big.Int {
+	return new(big.Int).Sub(blockNumber, big.NewInt(1))
 }

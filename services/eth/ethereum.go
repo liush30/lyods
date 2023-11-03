@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"log"
+	"lyods-adsTool/db"
 	"lyods-adsTool/domain"
 	"lyods-adsTool/pkg/constants"
 	"math/big"
@@ -134,9 +135,21 @@ func (e *EthClient) getInternalTxn(interParam *InternalTxnParam, internalTxn *do
 	}
 
 }
+func (e *EthClient) TestReceipt(hash string) error {
+	receipt, err := e.TransactionReceipt(context.Background(), common.HexToHash(hash))
+	if err != nil {
+		return fmt.Errorf("failed to get receipt info for %v: %v", hash, err)
+	}
+	for _, logInfo := range receipt.Logs {
+		log.Println(common.HexToAddress(logInfo.Topics[1].Hex()).String())
+		log.Println(common.HexToAddress(logInfo.Topics[2].Hex()).String())
+		log.Println(big.NewInt(0).SetBytes(logInfo.Data).String())
+	}
+	return nil
+}
 
 // ParseTransReceiptByHash 根据交易hash解析交易中的log信息
-func (e *EthClient) ParseTransReceiptByHash(dbClient *sql.DB, hash string, contractAbiMap *map[common.Address][]byte) ([]domain.Logs, error) {
+func (e *EthClient) ParseTransReceiptByHash(dbClient *sql.DB, hash string, contractAbiMap *map[common.Address]ContractMap) ([]domain.Logs, error) {
 	//根据交易哈希查询交易的receipt信息
 	receipt, err := e.TransactionReceipt(context.Background(), common.HexToHash(hash))
 	if err != nil {
@@ -149,72 +162,143 @@ func (e *EthClient) ParseTransReceiptByHash(dbClient *sql.DB, hash string, contr
 	var resultList []domain.Logs //log信息列表
 	//查询log信息
 	if receipt.Status == 1 { //receipt status 1表示执行成功，0表示执行失败
-		resultList, err = getLogsInReceipt(dbClient, receipt.Logs, contractAbiMap)
+		resultList, err = e.getLogsInReceipt(dbClient, receipt.Logs, contractAbiMap)
 		if err != nil {
 			return nil, fmt.Errorf("fail get logs info:%v", err)
 		}
 	}
 	return resultList, nil
 }
-func getLogsInReceipt(dbClient *sql.DB, logs []*types.Log, contractAbiMap *map[common.Address][]byte) ([]domain.Logs, error) {
+func (e *EthClient) getLogsInReceipt(dbClient *sql.DB, logs []*types.Log, contractAbiMap *map[common.Address]ContractMap) ([]domain.Logs, error) {
 	var resultList []domain.Logs
 	//遍历receipt log
 	for _, logInfo := range logs {
-		abiByte, err := getOrLoadABI(dbClient, logInfo.Address, contractAbiMap)
+		contractMap, err := e.getContractMapByLogAddress(dbClient, logInfo.Address, contractAbiMap)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get ABI info: %v", err)
 		}
 		var resultLog domain.Logs
 		//若合约未被验证，记录未被解析的log数据，并退出循环，解析下一个log
-		if string(abiByte) == constants.ABI_NO {
-			resultLog = parseNoVerifyLog(logInfo)
+		if string(contractMap.ABI) == constants.ABI_NO {
+			//resultLog, erc20Tx := parseNoVerifyLog(logInfo, contractAbiMap)
 		} else {
-			resultLog, err = parseVerifyLog(abiByte, logInfo)
-			if err != nil {
-				return nil, fmt.Errorf("fail parse log:%v", err.Error())
-			}
+			//resultLog, err = parseVerifyLog(abiByte, logInfo)
+			//if err != nil {
+			//	return nil, fmt.Errorf("fail parse log:%v", err.Error())
+			//}
 		}
 		resultList = append(resultList, resultLog)
 	}
 	return resultList, nil
 }
-func getOrLoadABI(dbClient *sql.DB, logAddr common.Address, contractAbiMap *map[common.Address][]byte) ([]byte, error) {
-	if abiByte, ok := (*contractAbiMap)[logAddr]; ok {
-		return abiByte, nil
+func (e *EthClient) getContractMapByLogAddress(dbClient *sql.DB, logAddr common.Address, contractAbiMap *map[common.Address]ContractMap) (ContractMap, error) {
+	if contractMap, ok := (*contractAbiMap)[logAddr]; ok {
+		return contractMap, nil
 	}
 
-	abiByte, err := loadABIFromDatabase(dbClient, logAddr)
+	contractMap, err := e.checkIsErc20AndABI(dbClient, logAddr.String())
 	if err != nil {
-		return nil, err
+		return ContractMap{}, err
 	}
-
-	(*contractAbiMap)[logAddr] = abiByte
-	return abiByte, nil
+	//存储到contractAbiMap
+	(*contractAbiMap)[logAddr] = contractMap
+	return contractMap, nil
 }
-
-// 根据合约地址查询abi信息：1.先从数据库中根据合约地址查询abi信息2.若未查询到则通过api查询abi信息
-func loadABIFromDatabase(dbClient *sql.DB, logAddr common.Address) ([]byte, error) {
-	// 查询数据库中的合约ABI信息
-	//abiByte, err := db.GetAbi(dbClient, logAddr.String())
-	//if err != nil {
-	//	return nil, fmt.Errorf("failed to get ABI info from the database: %v", err)
-	//}
-	//
-	//if abiByte == nil {
-	//	// 通过地址查询合约的ABI信息
-	//	contractAbiStr, err := GetContractAbiOnEth(logAddr.String())
-	//	if err != nil {
-	//		return nil, fmt.Errorf("failed to get ABI info from the API: %v", err)
-	//	}
-	//	abiByte = []byte(contractAbiStr)
-	//}
-
-	return nil, nil
+func (e *EthClient) checkIsErc20AndABI(dbClient *sql.DB, addr string) (ContractMap, error) {
+	//判断该地址是否存在数据库中
+	count, abi, decimal, err := db.QueryAbiAndCheckByAddress(dbClient, addr, constants.DB_CHAIN_ETH)
+	if err != nil {
+		return ContractMap{}, fmt.Errorf("failed to get ABI info from the database: %v", err)
+	}
+	//若count>0,说明该地址是erc20合约
+	if count > 0 {
+		return ContractMap{ABI: abi, IsErc20: true, Decimal: decimal}, nil
+	}
+	//若不存在,则通过地址查询合约的ABI信息
+	contractAbiStr, err := e.GetContractAbiOnEth(addr)
+	if err != nil {
+		return ContractMap{}, fmt.Errorf("failed to get ABI info from the API: %v", err)
+	} else if contractAbiStr == constants.ABI_NO { //合约未被验证
+		return ContractMap{ABI: contractAbiStr, IsErc20: false}, nil
+	}
+	//根据合约abi信息判断是否是erc20合约
+	isErc20, err := IsERC20(contractAbiStr)
+	if err != nil {
+		return ContractMap{}, fmt.Errorf("failed to check erc20 ABI info from the API: %v", err)
+	}
+	if isErc20 {
+		return ContractMap{
+			ABI:     contractAbiStr,
+			IsErc20: true,
+			Decimal: decimal,
+		}, nil
+	}
+	//检查合约是否是一个代理合约
+	isProxy, proxyAddr, err := e.IsProxyContract(addr, contractAbiStr)
+	if err != nil {
+		return ContractMap{}, fmt.Errorf("failed to check ABI info from the API: %v", err)
+	}
+	//若是代理合约，根据获得的道理地址，查询abi信息
+	if isProxy {
+		proxyABI, err := e.GetContractAbiOnEth(proxyAddr)
+		if err != nil {
+			return ContractMap{}, fmt.Errorf("%s fail get proxy contract address abi: %s\n", addr, err.Error())
+		}
+		//根据代理合约的ABI判断，该地址是否为erc20合约
+		isErc20, err = IsERC20(proxyABI)
+		if err != nil {
+			return ContractMap{}, fmt.Errorf("%s fail check erc20 abi info from %s: %s\n", addr, proxyAddr, err.Error())
+		}
+		if isErc20 {
+			return ContractMap{ABI: proxyABI, IsErc20: true}, nil
+		}
+		//不是erc20合约
+		return ContractMap{ABI: proxyABI, IsErc20: false}, nil
+	}
+	return ContractMap{ABI: contractAbiStr, IsErc20: false}, nil
 }
 
 // 获取未验证的合约的log信息
-func parseNoVerifyLog(logInfo *types.Log) domain.Logs {
+func parseNoVerifyLog(e *EthClient, logInfo *types.Log, contractAbiMap *map[common.Address]ContractMap) (domain.Logs, domain.Erc20Txn, error) {
 	var topicsInfo []domain.TopicsValStruct
+	var erc20Info domain.Erc20Txn
+	if logInfo.Topics[0].String() == constants.SIGN_TRANSFER {
+		from := logInfo.Topics[1].String()
+		to := logInfo.Topics[2].String()
+		value := big.NewInt(0).SetBytes(logInfo.Data).String()
+		topicsInfo = append(topicsInfo, domain.TopicsValStruct{
+			Key:   "from",
+			Value: from,
+		})
+		topicsInfo = append(topicsInfo, domain.TopicsValStruct{
+			Key:   "to",
+			Value: to,
+		})
+		topicsInfo = append(topicsInfo, domain.TopicsValStruct{
+			Key:   "value",
+			Value: value,
+		})
+		if contractMap, ok := (*contractAbiMap)[logInfo.Address]; ok {
+			transferLog := domain.Logs{
+				Address:   logInfo.Address.String(),
+				EventInfo: logInfo.Topics[0].String(), //topics[0]是事件签名
+				Topics:    topicsInfo,
+			}
+			erc20Info = domain.Erc20Txn{
+				FromAddr: logInfo.Topics[1].String(),
+				ToAddr:   logInfo.Topics[2].String(),
+				Amount:   ConvertTokenValue(big.NewInt(0).SetBytes(logInfo.Data), contractMap.Decimal),
+			}
+			if contractMap.IsErc20 {
+				return transferLog, erc20Info, nil
+			}
+			//尝试查询合约的decimals,symbol，如果都存在判定为该合约地址为erc20地址
+			e.CallContractMethod(logInfo.Address.String(), constants.ABI_ERC20, "decimals")
+
+		} else {
+			return domain.Logs{}, domain.Erc20Txn{}, fmt.Errorf("failed to get contractMap info from the contractAbiMap")
+		}
+	}
 	//遍历topics数组，将数据存储于topicsInfo中
 	for i, iTopicsList := range logInfo.Topics[1:] {
 		topicsInfo = append(topicsInfo, domain.TopicsValStruct{
@@ -227,17 +311,18 @@ func parseNoVerifyLog(logInfo *types.Log) domain.Logs {
 		Key:   "dataHex",
 		Value: common.BytesToHash(logInfo.Data).Hex(),
 	})
-	return domain.Logs{
-		Address:   logInfo.Address.String(),
-		EventInfo: logInfo.Topics[0].String(), //topics[0]是事件签名
-		Topics:    topicsInfo,
-	}
+	return domain.Logs{}, domain.Erc20Txn{}, nil
+	//return domain.Logs{
+	//	Address:   logInfo.Address.String(),
+	//	EventInfo: logInfo.Topics[0].String(), //topics[0]是事件签名
+	//	Topics:    topicsInfo,
+	//}
 }
 
 // 获取已验证合约的log信息
-func parseVerifyLog(abiByte []byte, logInfo *types.Log) (domain.Logs, error) {
+func parseVerifyLog(abiByte string, logInfo *types.Log) (domain.Logs, error) {
 	//根据获得的abi信息，生成合约abi对象
-	contractABI, err := abi.JSON(bytes.NewReader(abiByte))
+	contractABI, err := abi.JSON(bytes.NewReader([]byte(abiByte)))
 	if err != nil {
 		return domain.Logs{}, fmt.Errorf("ParseTransReceiptByHash: Fail to create abi->%s", err.Error())
 	}

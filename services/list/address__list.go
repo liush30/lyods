@@ -16,6 +16,7 @@ import (
 	"lyods-adsTool/pkg/utils"
 	"lyods-adsTool/services/bitcoin"
 	"lyods-adsTool/services/eth"
+	"net/http"
 	"os"
 	"regexp"
 	"strconv"
@@ -81,12 +82,12 @@ func GetAddrListByJSONOnBitcoin(url string, bitClient *bitcoin.BitClient, c *es.
 			}
 			//判断该风险地址是否已经存在，若该地址已经存在，则更新地址来源
 			if isExist {
-				//log.Printf("%s信息已存在,添加该数据来源\n", addrStr)
-				//err = c.AddDsAddrSource(id, dsAddrInfo)
-				//if err != nil {
-				//	log.Fatal("Fail add data source:", err.Error())
-				//	return
-				//}
+				log.Printf("%s信息已存在,添加该数据来源\n", addrStr)
+				err = c.AddDsAddrSource(id, dsAddrInfo)
+				if err != nil {
+					log.Fatal("Fail add data source:", err.Error())
+					return
+				}
 			} else {
 				//log.Printf("添加%s地址至风险名单中\n", addrStr)
 				//地址不存在，则新建
@@ -126,7 +127,6 @@ func GetAddrListByJSONOnBitcoin(url string, bitClient *bitcoin.BitClient, c *es.
 							return
 						}
 					}
-
 				}
 			}
 		}
@@ -242,7 +242,7 @@ func GetAddrListOnCsv(url string, c *es.ElasticClient, e *eth.EthClient) error {
 // XRP
 // USDC
 // -----("https://www.treasury.gov/ofac/downloads/sdn.xml", `^Digital Currency Address - ([\D]{3,16}$)
-func GetAddrListOnXmlByElement(path string, c *es.ElasticClient) error {
+func GetAddrListOnXmlByElement(path string, c *es.ElasticClient, bitClient *bitcoin.BitClient, httpClient *http.Client) error {
 	var err error
 	////发送http请求
 	//resp, err := utils.SendHTTPRequest(url, constants.HTTP_GET, nil)
@@ -383,6 +383,28 @@ func GetAddrListOnXmlByElement(path string, c *es.ElasticClient) error {
 							err = c.Insert(constants.ES_ADDRESS, idNumberValue, walletAddr)
 							if err != nil {
 								log.Fatal("Fail insert risk address:", err.Error())
+							}
+							//log.Println(chain, idNumberValue)
+							if chain == "Bitcoin" {
+								//查询该地址的交易信息
+								_, pageTotal, err := bitcoin.GetTxListByBtcCom(bitClient, httpClient, c, idNumberValue, constants.BTC_INIT_PAGE)
+								if err != nil {
+									return fmt.Errorf("fail get tx list on btc:%v", err)
+								}
+								//bitClient.AddReqCount()
+								pageNum := 1
+								//若pageTotal>1,则继续查询后续交易信息
+								if pageTotal > 1 {
+									for int64(pageNum) < pageTotal {
+										//checkRequestStatus(&requestCount, &lastRequestTime)
+										pageNum++
+										_, _, err = bitcoin.GetTxListByBtcCom(bitClient, httpClient, c, idNumberValue, strconv.Itoa(pageNum))
+										if err != nil {
+											log.Fatal("Fail get tx list on btc:", err.Error())
+											return fmt.Errorf("fail get tx list on btc:%v and page is %d", err, pageNum)
+										}
+									}
+								}
 							}
 						}
 					}
