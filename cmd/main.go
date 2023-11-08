@@ -7,6 +7,7 @@ import (
 	"lyods-adsTool/pkg/constants"
 	"lyods-adsTool/pkg/utils"
 	"lyods-adsTool/services/bitcoin"
+	"lyods-adsTool/services/eth"
 	"lyods-adsTool/services/list"
 	"time"
 )
@@ -24,18 +25,36 @@ func main() {
 	//}
 	//fmt.Println(str)
 	//删除索引
-	deleteIndex(esClient, constants.ES_ADDRESS)
-	deleteIndex(esClient, constants.ES_TRANSACTION)
-	deleteIndex(esClient, constants.ES_ENTITY)
+	//deleteIndex(esClient, constants.ES_ADDRESS)
+	//deleteIndex(esClient, constants.ES_TRANSACTION)
+	//deleteIndex(esClient, constants.ES_ENTITY)
 	//创建不同的索引
-	createIndex(esClient, constants.ES_ADDRESS, constants.ADDR_MAPPING)
-	createIndex(esClient, constants.ES_TRANSACTION, constants.TRANS_MAPPING)
-	createIndex(esClient, constants.ES_ENTITY, constants.ENTITY_MAPPING)
+	//createIndex(esClient, constants.ES_ADDRESS, constants.ADDR_MAPPING)
+	//createIndex(esClient, constants.ES_TRANSACTION, constants.TRANS_MAPPING)
+	//createIndex(esClient, constants.ES_ENTITY, constants.ENTITY_MAPPING)
 	bitClient := bitcoin.BitClient{
 		RequestCount:    0,
 		LastRequestTime: time.Now(),
+		Httpclient:      utils.CreateClient(),
 	}
-	client := utils.CreateClient()
+	//client := utils.CreateClient()
+	e := eth.CreateEthClient()
+	ethClient := eth.EthClient{
+		Client:          e,
+		Key:             []string{constants.ETH_KEY1, constants.ETH_KEY2},
+		LastRequestTime: time.Now(),
+		HTTPClient:      utils.CreateClient(),
+	}
+	cbClient := eth.ChainBaseClient{
+		RequestCount:    0,
+		LastRequestTime: time.Now(),
+	}
+	rClient := list.RClient{
+		EsClient: esClient,
+		EtClient: &ethClient,
+		CbClient: &cbClient,
+		BtClient: &bitClient,
+	}
 	// 获取风险名单信息
 	//if err := list.GetAddrListByJSONOnBitcoin(constants.OPENSANCTIONS_URL, &bitClient, esClient); err != nil {
 	//	log.Printf("Failed to get risk list from JSON source: %v\n", err)
@@ -43,9 +62,14 @@ func main() {
 	//if err := list.GetAddrListOnCsv(constants.UNISWAP_URL, esClient); err != nil {
 	//	log.Printf("Failed to get risk list from CSV source: %v\n", err)
 	//}
-	if err := list.GetAddrListOnXmlByElement(`D:\Code\GoProjec\lyods-adsTool\sdn.xml`, esClient, &bitClient, client); err != nil {
+	//if err := rClient.GetAddrListOnXmlByElement(`D:\Code\GoProjec\lyods-adsTool\sdn.xml`); err != nil {
+	//	log.Printf("Failed to get risk list from XML source: %v\n", err)
+	//}
+	_, _, err = rClient.EtClient.GetTxListOnEth(rClient.EsClient, rClient.CbClient, "0xCEe71753C9820f063b38FDbE4cFDAf1d3D928A80", "0")
+	if err != nil {
 		log.Printf("Failed to get risk list from XML source: %v\n", err)
 	}
+	//fmt.Println(len(list))
 	//dbClient := db.GetDb()
 	//defer dbClient.Close()
 	////添加更新记录

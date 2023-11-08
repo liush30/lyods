@@ -40,17 +40,16 @@ func ExistsToken(db *sql.DB, contractAddress, blockchain string) (bool, error) {
 }
 
 // QueryAbiAndCheckByAddress 根据合约地址查询abi信息,以及记录count数
-func QueryAbiAndCheckByAddress(db *sql.DB, contractAddress, chain string) (int, string, int, error) {
-	querySQL := `SELECT COUNT(*) AS count,MAX(abi) AS abi,MAX(DECIMALS) AS decimals FROM t_token
+func QueryAbiAndCheckByAddress(db *sql.DB, contractAddress, chain string) (string, int, error) {
+	querySQL := `SELECT abi,DECIMALS  FROM t_token
 WHERE contract_address = ? AND chain = ?;`
-	var count int
 	var abi string
 	var decimals int
-	err := db.QueryRow(querySQL, contractAddress, chain).Scan(&count, &abi, &decimals)
+	err := db.QueryRow(querySQL, contractAddress, chain).Scan(&abi, &decimals)
 	if err != nil {
-		return 0, "", 0, fmt.Errorf("query from t_token abi info error: %v", err)
+		return "", 0, fmt.Errorf("query from t_token abi info error: %v", err)
 	}
-	return count, abi, decimals, nil
+	return abi, decimals, nil
 }
 
 func GetContractAddressAll(db *sql.DB, chain string) ([]string, error) {

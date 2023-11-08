@@ -12,7 +12,3 @@ func IsErrorFloat(err error, str1 string) {
 		log.Fatalf("%s:%s\n", str1, err.Error())
 	}
 }
-func HandleError(err error, message string) error {
-	log.Printf("%s: %v\n", message, err)
-	return err
-}

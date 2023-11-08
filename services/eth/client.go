@@ -66,19 +66,48 @@ func (e *EthClient) CheckRequestStatus() bool {
 
 // SendHTTPRequest 根据指定的url发送http请求']
 
+//	func (e *EthClient) SendHTTPRequest(url string) (*http.Response, error) {
+//		isNormalStatus := e.CheckRequestStatus()
+//		if !isNormalStatus {
+//			return nil, fmt.Errorf("the number of requests exceeds the limit")
+//		}
+//		resp, err := e.HTTPClient.Get(url)
+//		if err != nil {
+//			return nil, fmt.Errorf("send http request error:%v", err)
+//		} else if resp.StatusCode != http.StatusOK {
+//			return nil, fmt.Errorf("status code is %s", strconv.Itoa(resp.StatusCode))
+//		}
+//
+//		return resp, nil
+//	}
 func (e *EthClient) SendHTTPRequest(url string) (*http.Response, error) {
 	isNormalStatus := e.CheckRequestStatus()
 	if !isNormalStatus {
 		return nil, fmt.Errorf("the number of requests exceeds the limit")
 	}
-	resp, err := e.HTTPClient.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("send http request error:%v", err)
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status code is %s", strconv.Itoa(resp.StatusCode))
+
+	for retry := 0; retry < 3; retry++ {
+		resp, err := e.HTTPClient.Get(url)
+		if err != nil {
+			if retry < 2 {
+				// 如果请求失败，等待3秒后重试
+				time.Sleep(3 * time.Second)
+			} else {
+				return nil, fmt.Errorf("send http request error after 3 retries: %v", err)
+			}
+		} else if resp.StatusCode == http.StatusOK {
+			return resp, nil
+		} else {
+			if retry < 2 {
+				// 如果状态码不是200，等待3秒后重试
+				time.Sleep(3 * time.Second)
+			} else {
+				return nil, fmt.Errorf("status code is %s after 3 retries", strconv.Itoa(resp.StatusCode))
+			}
+		}
 	}
 
-	return resp, nil
+	return nil, fmt.Errorf("maximum number of retries reached")
 }
 
 // GetKey 获得key值
@@ -162,6 +191,28 @@ func (e *EthClient) CallContractMethod(contractAddress string, contractABIJSON s
 	}
 	return resultInterface, nil
 }
+
+//func (e *EthClient) GetTokenSymbol(contractAddress common.Address) (string, error) {
+//	symbolData, err := e.CallContract(context.Background(), ethereum.CallMsg{
+//		To:   &contractAddress,
+//		Data: common.Hex2Bytes("0x95d89b41"), // 使用ERC-20标准的symbol函数签名
+//	}, nil)
+//	if err != nil {
+//		return "", err
+//	}
+//	return string(symbolData), nil
+//}
+//
+//func (e *EthClient) GetTokenDecimal(contractAddress common.Address) (int, error) {
+//	decimalData, err := e.CallContract(context.Background(), ethereum.CallMsg{
+//		To:   &contractAddress,
+//		Data: common.Hex2Bytes("0x313ce567"), // 使用ERC-20标准的decimals函数签名
+//	}, nil)
+//	if err != nil {
+//		return 0, err
+//	}
+//
+//}
 
 // CallContractMethod 调用
 //func (e *EthClient) CallContractMethod(msg ethereum.CallMsg) ([]interface{}, error) {

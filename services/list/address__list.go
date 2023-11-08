@@ -11,12 +11,10 @@ import (
 	"log"
 	"lyods-adsTool/domain"
 	"lyods-adsTool/es"
-	"lyods-adsTool/pkg"
 	"lyods-adsTool/pkg/constants"
 	"lyods-adsTool/pkg/utils"
 	"lyods-adsTool/services/bitcoin"
 	"lyods-adsTool/services/eth"
-	"net/http"
 	"os"
 	"regexp"
 	"strconv"
@@ -89,29 +87,34 @@ func GetAddrListByJSONOnBitcoin(url string, bitClient *bitcoin.BitClient, c *es.
 					return
 				}
 			} else {
-				//log.Printf("添加%s地址至风险名单中\n", addrStr)
+				addrBalance, err := bitcoin.GetAddressInfo(bitClient, addrStr)
+				if err != nil {
+					log.Println("Fail get address info:", err.Error())
+					return
+				}
 				//地址不存在，则新建
 				walletAddr := domain.WalletAddr{
 					WaAddr:      addrStr,
 					WaRiskLevel: constants.INIT_LEVEL,
-					WaChain:     chain,
+					WaChain:     "BTC",
 					DsAddr: []domain.AdsDataSource{
 						dsAddrInfo,
 					},
 					IsNeedTrace: true,
+					Balance:     addrBalance,
 				}
 				//将风险名单信息存储至风险名单中，id=地址+所在链
 				err = c.Insert(constants.ES_ADDRESS, id, walletAddr)
 				if err != nil {
-					log.Fatal("Fail inset risk address to es", err.Error())
+					log.Println("Fail inset risk address to es", err.Error())
 					return
 				}
 				//如果请求计数超过限制，等待1分钟
 				//checkRequestStatus(&requestCount, &lastRequestTime)
 				//查询该地址的交易信息
-				_, pageTotal, err := bitcoin.GetTxListByBtcCom(bitClient, client, c, addrStr, constants.BTC_INIT_PAGE)
+				_, pageTotal, err := bitcoin.GetTxListByBtcCom(bitClient, c, addrStr, constants.BTC_INIT_PAGE)
 				if err != nil {
-					log.Fatal("Fail get tx list on btc:", err.Error())
+					log.Println("Fail get tx list on btc:", err.Error())
 					return
 				}
 				//bitClient.AddReqCount()
@@ -121,7 +124,7 @@ func GetAddrListByJSONOnBitcoin(url string, bitClient *bitcoin.BitClient, c *es.
 					for int64(pageNum) < pageTotal {
 						//checkRequestStatus(&requestCount, &lastRequestTime)
 						pageNum++
-						_, _, err = bitcoin.GetTxListByBtcCom(bitClient, client, c, addrStr, strconv.Itoa(pageNum))
+						_, _, err = bitcoin.GetTxListByBtcCom(bitClient, c, addrStr, strconv.Itoa(pageNum))
 						if err != nil {
 							log.Fatal("Fail get tx list on btc:", err.Error())
 							return
@@ -228,6 +231,13 @@ func GetAddrListOnCsv(url string, c *es.ElasticClient, e *eth.EthClient) error {
 	return nil
 }
 
+type RClient struct {
+	EsClient *es.ElasticClient
+	BtClient *bitcoin.BitClient
+	EtClient *eth.EthClient
+	CbClient *eth.ChainBaseClient
+}
+
 // GetAddrListOnXmlByElement 根据url获取xml格式的地址名单-根据访问元素，查询所在链以及地址
 // 目前链[XBT(BTC), ETH,BSC(bnb),ARB,
 // LTC
@@ -242,7 +252,7 @@ func GetAddrListOnCsv(url string, c *es.ElasticClient, e *eth.EthClient) error {
 // XRP
 // USDC
 // -----("https://www.treasury.gov/ofac/downloads/sdn.xml", `^Digital Currency Address - ([\D]{3,16}$)
-func GetAddrListOnXmlByElement(path string, c *es.ElasticClient, bitClient *bitcoin.BitClient, httpClient *http.Client) error {
+func (r *RClient) GetAddrListOnXmlByElement(path string) error {
 	var err error
 	////发送http请求
 	//resp, err := utils.SendHTTPRequest(url, constants.HTTP_GET, nil)
@@ -350,8 +360,11 @@ func GetAddrListOnXmlByElement(path string, c *es.ElasticClient, bitClient *bitc
 						//截取数据：所在链，以及地址,存储到地址风险名单中
 						//根据货币名称获取所在链
 						chain := getChainBySdn(idType)
+						if chain == constants.SDN_CHAIN_BTC {
+							chain = constants.CHAIN_BTC
+						}
 						//根据address，查询该地址是否已经存在
-						isExist, err := c.IsExistById(constants.ES_ADDRESS, idNumberValue)
+						isExist, err := r.EsClient.IsExistById(constants.ES_ADDRESS, idNumberValue+"_"+chain)
 						if err != nil {
 							log.Printf("IsExistById Error :%s\n，id=%s", err.Error(), idNumberValue)
 							continue
@@ -365,10 +378,13 @@ func GetAddrListOnXmlByElement(path string, c *es.ElasticClient, bitClient *bitc
 						}
 						//若该地址已经存在，则增加地址来源
 						if isExist {
-							//log.Printf("%s信息已存在,添加该数据来源\n", idNumberValue)
-							c.AddDsAddrSource(idNumberValue, dsAddrInfo)
+							log.Printf("%s信息已存在,添加该数据来源\n", idNumberValue)
+							//r.EsClient.AddDsAddrSource(idNumberValue, dsAddrInfo)
 						} else {
-							//log.Printf("添加%s地址信息\n", idNumberValue)
+							//addrBalance, err := bitcoin.GetAddressInfo(bitClient, idNumberValue)
+							if err != nil {
+								return fmt.Errorf("fail get address info:%v", err)
+							}
 							//地址不存在，则新建风险名单信息,并存储到es中
 							walletAddr := domain.WalletAddr{
 								WaAddr:      idNumberValue,
@@ -379,31 +395,38 @@ func GetAddrListOnXmlByElement(path string, c *es.ElasticClient, bitClient *bitc
 									dsAddrInfo,
 								},
 								IsNeedTrace: true,
+								//Balance:     addrBalance,
 							}
-							err = c.Insert(constants.ES_ADDRESS, idNumberValue, walletAddr)
+							walletAddr.AddressId = idNumberValue + "_" + chain
+							err = r.EsClient.Insert(constants.ES_ADDRESS, walletAddr.AddressId, walletAddr)
 							if err != nil {
-								log.Fatal("Fail insert risk address:", err.Error())
+								return fmt.Errorf("fail insert %s to addr_list:%v", idNumberValue+"_"+walletAddr.WaChain, err)
 							}
-							//log.Println(chain, idNumberValue)
-							if chain == "Bitcoin" {
+							if chain == constants.SDN_CHAIN_BTC {
 								//查询该地址的交易信息
-								_, pageTotal, err := bitcoin.GetTxListByBtcCom(bitClient, httpClient, c, idNumberValue, constants.BTC_INIT_PAGE)
+								_, _, err := bitcoin.GetTxListByBtcCom(r.BtClient, r.EsClient, idNumberValue, constants.BTC_INIT_PAGE)
 								if err != nil {
 									return fmt.Errorf("fail get tx list on btc:%v", err)
 								}
-								//bitClient.AddReqCount()
-								pageNum := 1
-								//若pageTotal>1,则继续查询后续交易信息
-								if pageTotal > 1 {
-									for int64(pageNum) < pageTotal {
-										//checkRequestStatus(&requestCount, &lastRequestTime)
-										pageNum++
-										_, _, err = bitcoin.GetTxListByBtcCom(bitClient, httpClient, c, idNumberValue, strconv.Itoa(pageNum))
-										if err != nil {
-											log.Fatal("Fail get tx list on btc:", err.Error())
-											return fmt.Errorf("fail get tx list on btc:%v and page is %d", err, pageNum)
-										}
-									}
+								//-------------------------------暂时不处理-------------------------------------------
+								//pageNum := 1
+								////若pageTotal>1,则继续查询后续交易信息
+								//if pageTotal > 1 {
+								//	for int64(pageNum) < pageTotal {
+								//		//checkRequestStatus(&requestCount, &lastRequestTime)
+								//		pageNum++
+								//		_, _, err = bitcoin.GetTxListByBtcCom(bitClient, c, idNumberValue, strconv.Itoa(pageNum))
+								//		if err != nil {
+								//			log.Fatal("Fail get tx list on btc:", err.Error())
+								//			return fmt.Errorf("fail get tx list on btc:%v and page is %d", err, pageNum)
+								//		}
+								//	}
+								//}
+								//--------------------------------------------------------------------------
+							} else if chain == constants.SDN_CHAIN_ETH {
+								_, _, err := r.EtClient.GetTxListOnEth(r.EsClient, r.CbClient, idNumberValue, "0")
+								if err != nil {
+									return fmt.Errorf("fail get tx list on eth:%v", err)
 								}
 							}
 						}
@@ -421,7 +444,7 @@ func GetAddrListOnXmlByElement(path string, c *es.ElasticClient, bitClient *bitc
 			entityInfo.IDList = idInfoList
 			entityInfo.OtherInfo = otherList
 			//存入es中
-			err = c.Insert(constants.ES_ENTITY, entityId, &entityInfo)
+			err = r.EsClient.Insert(constants.ES_ENTITY, entityId, &entityInfo)
 			if err != nil {
 				log.Fatal("Fail insert risk entity:", err.Error())
 			}
@@ -548,7 +571,7 @@ func getChainBySdn(idType string) string {
 		log.Fatal("Fail compile address currency:", err.Error())
 	}
 	params := flysnowRegexp.FindStringSubmatch(idType)
-	return pkg.CurrencyToChain[params[len(params)-1]]
+	return params[len(params)-1]
 }
 func elementBySdn(idType string, id *etree.Element) string {
 	element := id.SelectElement(idType)

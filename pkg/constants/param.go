@@ -20,6 +20,7 @@ const (
 )
 const (
 	CHAIN_ETH = "ETH"
+	CHAIN_BTC = "BTC"
 )
 
 // 风险名单来源类型
@@ -46,11 +47,17 @@ const (
 	ES_ENTITY       = "risk_entity"        //风险名单实体信息索引名称
 	ES_CHANGERECORD = "risk_change_record" //风险等级变更记录
 )
+
+// chainbase
 const (
-	RPC_ID           = 1
-	RPC_VERSION      = "2.0"
-	RPC_METHOD_TRACE = "trace_transaction"
+	RPC_ID                = 1
+	RPC_VERSION           = "2.0"
+	RPC_METHOD_TRACE      = "trace_transaction"
+	CHAINBASE_MAX_REQUEST = 20
+	CHAINBASE_PER_MINUTE  = 10 * time.Second //10秒内最多请求20个
+	CHAINBASE_RETRY_COUNT = 3                //重试_Count
 )
+
 const (
 	ABI_NO = "Contract source code not verified"
 )

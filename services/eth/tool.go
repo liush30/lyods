@@ -40,9 +40,8 @@ func getTraceTransactionUrl() string {
 
 // IsContractAddress 判断地址是否为合约地址-以太坊
 func (e *EthClient) IsContractAddress(addressStr string) (bool, error) {
-	var address common.Address
 	//获取字节码信息
-	bytecode, err := e.CodeAt(context.Background(), address, nil)
+	bytecode, err := e.CodeAt(context.Background(), common.HexToAddress(addressStr), nil)
 	if err != nil {
 		log.Println("Fail get byte code:", err)
 		return false, err
@@ -65,6 +64,8 @@ func WeiToEth(wei *big.Int) *big.Float {
 
 	return eth
 }
+
+// ConvertTokenValue 根据指定的decimal转换token的值
 func ConvertTokenValue(value *big.Int, decimal int) float64 {
 	scale := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimal)), nil)
 	valueInDecimal := new(big.Float).SetInt(value)
@@ -98,7 +99,7 @@ func interfaceToData(dataItem interface{}, dataType string) (string, bool) {
 		if boolValue, boolOk := dataItem.(bool); boolOk {
 			dataResult, dataOk = strconv.FormatBool(boolValue), true
 		}
-	case "bytes[]":
+	case "bytes":
 		if bytesValue, bytesOK := dataItem.([]byte); bytesOK {
 			dataResult, dataOk = hex.EncodeToString(bytesValue), true
 		}
@@ -106,13 +107,32 @@ func interfaceToData(dataItem interface{}, dataType string) (string, bool) {
 		if stringValue, stringOk := dataItem.(string); stringOk {
 			dataResult, dataOk = stringValue, true
 		}
-	case "uint8", "uint16", "uint32", "uint64", "int8", "int16", "int32", "int64":
+	case "int8", "int16", "int32", "int64":
 		if intValue, intOk := dataItem.(int64); intOk {
 			dataResult, dataOk = strconv.FormatInt(intValue, 10), true
 		}
+	case "uint8", "uint16", "uint32":
+		if intValue, intOk := dataItem.(uint32); intOk {
+			dataResult, dataOk = strconv.FormatInt(int64(intValue), 10), true
+		}
+	case "uint64":
+		if intValue, intOk := dataItem.(uint64); intOk {
+			dataResult, dataOk = strconv.FormatInt(int64(intValue), 10), true
+		}
+	case "bytes[]":
+		if bytesArray, bytesArrayOk := dataItem.([][]byte); bytesArrayOk {
+			// 处理多个字节数组，可以根据需要进行进一步处理
+			for _, bytesValue := range bytesArray {
+				dataResult += hex.EncodeToString(bytesValue) + ","
+			}
+			dataResult = dataResult[:len(dataResult)-1] // 去除最后一个逗号
+			dataOk = true
+		}
 	}
+
 	return dataResult, dataOk
 }
+
 func hexToData(inputType string, hash common.Hash) string {
 	var dataResult string
 	switch inputType {
@@ -147,7 +167,6 @@ func parseData(paramName, paramType []string, eventName string, dataLog []byte, 
 	for i, dataItem := range dataInter {
 		dataType := paramType[i]
 		dataName := paramName[i]
-
 		// 转换数据项
 		convertedValue, ok := interfaceToData(dataItem, dataType)
 		if !ok {
@@ -160,7 +179,7 @@ func parseData(paramName, paramType []string, eventName string, dataLog []byte, 
 	return nil
 }
 
-// j将解析后的键值对信息转存为TopicsValStruct
+// 将解析后的键值对信息转存为TopicsValStruct
 func mapToTopicsValStruct(topics map[string]string) []domain.TopicsValStruct {
 	var resultList []domain.TopicsValStruct
 	for key, value := range topics {

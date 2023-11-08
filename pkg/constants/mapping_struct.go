@@ -7,11 +7,17 @@ const ADDR_MAPPING = `
 {
     "mappings":{
         "properties":{
+			"addressId":{
+				"type":"keyword"
+			},
             "waAddr":{
                 "type":"keyword"
             },
             "entityId":{
                 "type":"keyword"
+            },
+            "balance":{
+                "type":"double"
             },
             "waRiskLevel":{
                 "type":"short"
@@ -19,19 +25,22 @@ const ADDR_MAPPING = `
             "waChain":{
                 "type":"keyword"
             },
-            "isTrace":{ 
-				"type":"boolean"
-			},
-           "isNeedTrace":{
-				"type":"boolean"
-			},
+            "isTrace":{
+                "type":"boolean"
+            },
+            "isNeedTrace":{
+                "type":"boolean"
+            },
+            "isContract":{
+                "type":"boolean"
+            },
             "adsDataSource":{
                 "type":"nested",
                 "properties":{
                     "dsAddr":{
                         "type":"keyword"
                     },
-                     "dsTransHash":{
+                    "dsTransHash":{
                         "type":"text",
                         "fields":{
                             "hash":{
@@ -46,14 +55,29 @@ const ADDR_MAPPING = `
                         "type":"text"
                     },
                     "time":{
-                       "type": "date",
-                      "format": "yyyy-MM-dd HH:mm:ss"
+                        "type":"date",
+                        "format":"yyyy-MM-dd HH:mm:ss"
                     },
                     "dsRules":{
-                        "type":"text",
-                        "fields":{
-                            "rule":{
+                        "type":"nested",
+                        "properties":{
+                            "dsRuKey":{
                                 "type":"keyword"
+                            },
+                            "dsRuType":{
+                                "type":"keyword"
+                            },
+                            "dsRuCode":{
+                                "type":"keyword"
+                            },
+                            "dsRuDesc":{
+                                "type":"text"
+                            },
+                            "dsRuStatus":{
+                                "type":"keyword"
+                            },
+                            "dsRuExpress":{
+                                "type":"text"
                             }
                         }
                     }
@@ -70,20 +94,36 @@ const ADDR_MAPPING = `
                     }
                 }
             },
-            "rules":{
-                "type":"text",
-                "fields":{
-                    "rule":{
-                        "type":"keyword"
+                    "rules":{
+                        "type":"nested",
+                        "properties":{
+                            "ruKey":{
+                                "type":"keyword"
+                            },
+                            "ruType":{
+                                "type":"keyword"
+                            },
+                            "ruCode":{
+                                "type":"keyword"
+                            },
+                            "ruDesc":{
+                                "type":"text"
+                            },
+                            "status":{
+                                "type":"keyword"
+                            },
+                            "ruExpress":{
+                                "type":"text"
+                            }
+                        }
                     }
-                }
-            },
+,
             "riskChgHistory":{
                 "type":"nested",
                 "properties":{
                     "dateOfChange":{
-                        "type": "date",
-                      "format": "yyyy-MM-dd"
+                        "type":"date",
+                        "format":"yyyy-MM-dd"
                     },
                     "riskLevel":{
                         "type":"short"
@@ -173,7 +213,7 @@ const TRANS_MAPPING = `
                 "type":"boolean"
             },
             "time":{
-                 "type": "date",
+              "type": "date",
               "format": "yyyy-MM-dd HH:mm:ss"
             },
             "blockHeight":{
@@ -321,13 +361,28 @@ const TRANS_MAPPING = `
                 }
             },
             "rules":{
-                "type":"text",
-                "fields":{
-                    "rule":{
-                        "type":"keyword"
-                    }
-                }
-            },
+                        "type":"nested",
+                        "properties":{
+                            "ruKey":{
+                                "type":"keyword"
+                            },
+                            "ruType":{
+                                "type":"keyword"
+                            },
+                            "ruCode":{
+                                "type":"keyword"
+                            },
+                            "ruDesc":{
+                                "type":"text"
+                            },
+                            "status":{
+                                "type":"keyword"
+                            },
+                            "ruExpress":{
+                                "type":"text"
+                            }
+                        }
+                    },
             "riskChgHistory":{
                 "type":"nested",
                 "properties":{
@@ -508,13 +563,28 @@ const ENTITY_MAPPING = `
         }
       },
             "rules":{
-                "type":"text",
-                "fields":{
-                    "rule":{
-                        "type":"keyword"
-                    }
-                }
-            },
+                        "type":"nested",
+                        "properties":{
+                            "ruKey":{
+                                "type":"keyword"
+                            },
+                            "ruType":{
+                                "type":"keyword"
+                            },
+                            "ruCode":{
+                                "type":"keyword"
+                            },
+                            "ruDesc":{
+                                "type":"text"
+                            },
+                            "status":{
+                                "type":"keyword"
+                            },
+                            "ruExpress":{
+                                "type":"text"
+                            }
+                        }
+                    },
             "riskChgHistory":{
                 "type":"nested",
                 "properties":{

@@ -1,8 +1,46 @@
 package eth
 
 import (
+	"github.com/ethereum/go-ethereum/core/types"
 	"lyods-adsTool/domain"
+	"math/big"
 )
+
+func TransferLog(logInfo *types.Log, contractMap *ContractMap) (domain.Logs, domain.Erc20Txn, error) {
+	var topicsInfo []domain.TopicsValStruct
+	//判断该日志记录的是都是转账信息
+	from := logInfo.Topics[1].String()
+	to := logInfo.Topics[2].String()
+	value := big.NewInt(0).SetBytes(logInfo.Data).String()
+	topicsInfo = append(topicsInfo, domain.TopicsValStruct{
+		Key:   "from",
+		Value: from,
+	})
+	topicsInfo = append(topicsInfo, domain.TopicsValStruct{
+		Key:   "to",
+		Value: to,
+	})
+	topicsInfo = append(topicsInfo, domain.TopicsValStruct{
+		Key:   "value",
+		Value: value,
+	})
+	transferLog := domain.Logs{
+		Address:   logInfo.Address.String(),
+		EventInfo: logInfo.Topics[0].String(), //topics[0]是事件签名
+		Topics:    topicsInfo,
+	}
+	//若该地址为erc20地址,返回erc20转账信息
+	if contractMap.IsErc20 {
+		return transferLog, domain.Erc20Txn{
+			FromAddr: logInfo.Topics[1].String(),
+			ToAddr:   logInfo.Topics[2].String(),
+			Amount:   ConvertTokenValue(big.NewInt(0).SetBytes(logInfo.Data), contractMap.Decimal),
+		}, nil
+	}
+	//不是erc20地址，则仅返回transferLog信息
+	return transferLog, domain.Erc20Txn{}, nil
+
+}
 
 // IsDepositEvent 判断是否为传统Deposit事件
 // Deposit (index_topic_1 address sender, uint256 value)

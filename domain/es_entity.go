@@ -4,10 +4,18 @@ import (
 	"time"
 )
 
-// es存储结构-实体信息 risk-domain
+// DateOfBirth es存储结构-实体信息 risk-domain
 type DateOfBirth struct {
 	DateOfBirth string `json:"dateOfBirth"`
 	MainEntry   bool   `json:"mainEntry"`
+}
+type Rule struct {
+	RuKey     string `json:"ruKey,dsRuKey"`         //规则id
+	RuType    string `json:"ruType,dsRuType"`       //规则类型
+	RuCode    string `json:"ruCode,dsRuCode"`       //规则代码
+	RuDesc    string `json:"ruDesc,dsRuDesc"`       //规则名称
+	Status    string `json:"status,dsRuStatus"`     //规则状态
+	RuExpress string `json:"ruExpress,dsRuExpress"` //规则表达式
 }
 
 type PlaceOfBirth struct {
@@ -60,7 +68,7 @@ type Entity struct {
 	OrgEstDate       interface{}        `json:"orgEstDate"`       //机构成立日期
 	OtherInfo        []OtherInfo        `json:"otherInfo"`        //其他信息
 	RiskChgHistory   []RiskChangeRecord `json:"riskChgHistory"`   //风险变更记录
-	Rules            []string           `json:"rules"`            //被中规则id列表
+	Rules            []Rule             `json:"rules"`            //被中规则id列表
 }
 
 type EsTrans struct {
@@ -99,7 +107,7 @@ type EsTrans struct {
 	Logs              []Logs             `json:"logs"`              //交易中的日志信息
 	Erc20Txn          []Erc20Txn         `json:"erc20Txn"`          //交易中的erc20信息
 	RiskChgHistory    []RiskChangeRecord `json:"riskChgHistory"`    //风险变更记录
-	Rules             []string           `json:"rules"`             //被中规则id列表
+	Rules             []Rule             `json:"rules"`             //被中规则id列表
 }
 
 // InternalTxn 交易内部信息
@@ -107,17 +115,15 @@ type InternalTxn struct {
 	Id              string `json:"id"`           //ID
 	TraceAddress    string `json:"traceAddress"` //路径
 	TraceAddressInt []int64
-	FromAddr        string  `json:"fromAddr"`  //内部交易发起方
-	ToAddr          string  `json:"toAddr"`    //内部交易接收方
-	InputTx         string  `json:"inputTx"`   //内部交易输入
-	OutputTx        string  `json:"outputTx"`  //内部交易输出
-	Value           float64 `json:"value"`     //转账金额
-	ValueText       string  `json:"valueText"` //转账金额-text
-	SubTraces       int64   `json:"subtraces"` //子交易个数
-	CallType        string  `json:"callType"`  //调用类型:call、staticcall（静态调用是一种不会修改合约状态的调用方式，它仅用于查询合约状态而不会进行任何状态变更。）
-	//ActualAmount big.Int `json:"actualAmount"` //实际金额
-	//AmountUSD    float64 `json:"amountUSD"`       //内部交易转化的美元价值
-	//ActualUSD    float64 `json:"actualUSD"`       //实际转化的美元价值
+	//Init            string  `json:"init"`  //合同初始化字节码
+	FromAddr  string  `json:"fromAddr"`  //内部交易发起方
+	ToAddr    string  `json:"toAddr"`    //内部交易接收方
+	InputTx   string  `json:"inputTx"`   //内部交易输入
+	OutputTx  string  `json:"outputTx"`  //内部交易输出
+	Value     float64 `json:"value"`     //转账金额
+	ValueText string  `json:"valueText"` //转账金额-text
+	SubTraces int64   `json:"subtraces"` //子交易个数
+	CallType  string  `json:"callType"`  //调用类型:call、staticcall（静态调用是一种不会修改合约状态的调用方式，它仅用于查询合约状态而不会进行任何状态变更。）
 }
 
 // Logs 交易中的日志信息
@@ -163,24 +169,28 @@ type OutTrans struct {
 
 // WalletAddr es存储结构-风险名单及风险来源 risk-address
 type WalletAddr struct {
+	AddressId      string             `json:"addressId"`      //风险地址id
 	WaAddr         string             `json:"waAddr"`         //风险钱包地址
 	EntityId       string             `json:"entityId"`       //entityID
+	Balance        float64            `json:"balance"`        //地址余额
 	WaRiskLevel    uint               `json:"waRiskLevel"`    //最高风险层级
 	WaChain        string             `json:"waChain"`        //所在链
 	DsAddr         []AdsDataSource    `json:"adsDataSource"`  //来源地址
 	LevelNumber    []Level            `json:"levelNumber"`    //被标记层级信息
-	Rules          []string           `json:"rules"`          //被中规则id列表
 	IsTrace        bool               `json:"isTrace"`        //是否追查子交易
 	IsNeedTrace    bool               `json:"isNeedTrace"`    //是否需要追查子交易
+	IsContract     bool               `json:"isContract"`     //是否是合约地址
 	RiskChgHistory []RiskChangeRecord `json:"riskChgHistory"` //风险变更记录
+	Rules          []Rule             `json:"rules"`          //被中规则id列表
 }
+
 type AdsDataSource struct {
 	DsAddr      string   `json:"dsAddr"`      //来源地址
 	DsTransHash []string `json:"dsTransHash"` //涉及风险交易哈希列表
 	DsType      string   `json:"dsType"`      //涉及风险交易哈希列表
 	Illustrate  string   `json:"illustrate"`  //风险说明
 	Time        string   `json:"time"`        //被标记时间
-	DsRules     []string `json:"dsRules"`     //规则id
+	DsRules     []Rule   `json:"dsRules"`     //规则id
 }
 type Level struct {
 	Level  int16 `json:"level"`  //所在层级

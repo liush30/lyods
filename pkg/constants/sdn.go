@@ -19,3 +19,7 @@ const (
 const (
 	CONDITION = `^Digital Currency Address - ([\D]{3,16}$)` //SDN数字地址过滤条件
 )
+const (
+	SDN_CHAIN_BTC = "XBT"
+	SDN_CHAIN_ETH = "ETH"
+)

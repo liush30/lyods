@@ -13,7 +13,6 @@ import (
 	"lyods-adsTool/pkg/constants"
 	"lyods-adsTool/pkg/utils"
 	"math/big"
-	"net/http"
 	"strconv"
 	"strings"
 )
@@ -51,12 +50,13 @@ import (
 //		}
 //		return transList, nil
 //	}
-func GetTxListByBtcCom(bitClient *BitClient, httpClient *http.Client, c *es.ElasticClient, addr, page string) ([]domain.EsTrans, int64, error) {
+func GetTxListByBtcCom(bitClient *BitClient, c *es.ElasticClient, addr, page string) ([]domain.EsTrans, int64, error) {
+	log.Println("GetTxListByBtcCom:", addr)
 	var transList []domain.EsTrans
 	var pageTotal int64
 	//获得url
 	url := getUrlByBtcCom(addr, page)
-	resp, err := bitClient.SendHTTPRequest(httpClient, url)
+	resp, err := bitClient.SendHTTPRequest(url)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -106,6 +106,34 @@ func GetTxListByBtcCom(bitClient *BitClient, httpClient *http.Client, c *es.Elas
 	return transList, pageTotal, nil
 }
 
+// GetAddressInfo 获取指定地址的余额
+func GetAddressInfo(bitClient *BitClient, addr string) (float64, error) {
+	url := getAddrInfoUrl(addr)
+	resp, err := bitClient.SendHTTPRequest(url)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, fmt.Errorf("GetAddressInfo read Body Error:%v", err)
+	}
+	//判断请求状态是否成功
+	status, err := jsonparser.GetString(body, "status")
+	if err != nil {
+		return 0, fmt.Errorf("get status Error:%v", err)
+	} else if status != "success" {
+		return 0, fmt.Errorf("status is %s", status)
+	}
+	//判断地址所属交易是否为空
+	balance, err := jsonparser.GetInt(body, "data", "balance")
+	if err != nil {
+		return 0, fmt.Errorf("get balance Error:%v", err)
+	}
+	balanceFloat, _ := ConvertSatoshiToBTC(big.NewInt(int64(balance)))
+	return balanceFloat, nil
+
+}
 func processTransByBtcCom(value []byte, addr string) domain.EsTrans {
 	var inputTransList []domain.InputsTrans //inputs信息
 	var outTransList []domain.OutTrans      //out信息
@@ -147,7 +175,7 @@ func processTransByBtcCom(value []byte, addr string) domain.EsTrans {
 		//将单个inputs信息存储于inputs list中
 		inputTransList = append(inputTransList, processInputsByBtcCom(inputValue))
 	}, "inputs")
-	inputValueFloat, _ := ConvertSatoshiToBTC(big.NewInt(inputsValue))
+	inputValueFloat, inputValueString := ConvertSatoshiToBTC(big.NewInt(inputsValue))
 	outputValueFloat, _ := ConvertSatoshiToBTC(big.NewInt(outsValue))
 	return domain.EsTrans{
 		Hash:          transHash,
@@ -166,7 +194,9 @@ func processTransByBtcCom(value []byte, addr string) domain.EsTrans {
 		OutputCount:   outputCount,
 		InputValue:    inputValueFloat,
 		OutputValue:   outputValueFloat,
-		Chain:         constants.BTC_CHAIN,
+		Chain:         constants.CHAIN_BTC,
+		Value:         inputValueFloat,
+		ValueText:     inputValueString,
 	}
 }
 
@@ -578,4 +608,8 @@ func getUrlByBlockChain(addr string) string {
 }
 func getUrlByBtcCom(addr, page string) string {
 	return constants.BTC_ADDR + addr + "/tx?pagesize=" + constants.BTC_PAGRSIZE + "&page=" + page
+}
+func getAddrInfoUrl(addr string) string {
+	return constants.BTC_ADDR + addr
+
 }

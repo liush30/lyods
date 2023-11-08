@@ -45,6 +45,10 @@ func (e *EthClient) IsProxyContract(contractAddress, contractABIJSON string) (bo
 	return false, "", nil
 }
 func (e *EthClient) IsEIP897(contractAddress, contractABIJSON string) (string, error) {
+	//验证合约abi中是否包含"name": "implementation"
+	if !strings.Contains(contractABIJSON, `"name": "implementation"`) || !strings.Contains(contractABIJSON, `"name":"implementation"`) {
+		return "", nil
+	}
 	abiFiles := []string{
 		"AppProxyUpgradeableAbi.json",
 		"AppProxyPinned.json",
@@ -142,12 +146,13 @@ func (e *EthClient) GetEIP1967BeaconAddress(contractAddress string) (string, err
 	}
 
 	beaconAddr := common.HexToAddress(common.BytesToHash(proxyAddress).String()).String()
-
+	if IsAddressEmpty(beaconAddr) {
+		return "", nil
+	}
 	beaconABI, err := e.GetContractAbiOnEth(beaconAddr)
 	if err != nil {
 		return "", fmt.Errorf("failed to get beacon ABI: %v", err)
 	}
-
 	result, err := e.CallContractMethod(beaconAddr, beaconABI, "implementation")
 	if err != nil {
 		return "", fmt.Errorf("failed to call beacon contract method: %v", err)

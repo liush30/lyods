@@ -103,6 +103,6 @@ func UnixToTime(unixTime int64) string {
 	utcTime = utcTime.In(utcLocation)
 
 	// 格式化时间为字符串
-	utcFormattedTime := utcTime.Format(time.RFC3339)
+	utcFormattedTime := utcTime.Format(time.DateTime)
 	return utcFormattedTime
 }
