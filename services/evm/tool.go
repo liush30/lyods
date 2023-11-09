@@ -1,4 +1,4 @@
-package eth
+package evm
 
 import (
 	"context"
@@ -11,7 +11,6 @@ import (
 	"lyods-adsTool/config"
 	"lyods-adsTool/domain"
 	"lyods-adsTool/pkg/constants"
-	"lyods-adsTool/pkg/utils"
 	"math/big"
 	"strconv"
 )
@@ -49,7 +48,7 @@ func (e *EthClient) IsContractAddress(addressStr string) (bool, error) {
 	//bytecode>0，说明是合约地址
 	return len(bytecode) > 0, nil
 }
-func WeiToEth(wei *big.Int) *big.Float {
+func WeiToEth(wei *big.Int) (float64, string, error) {
 	// 创建一个 big.Float 类型的值，用于表示 ETH
 	eth := new(big.Float)
 
@@ -62,7 +61,19 @@ func WeiToEth(wei *big.Int) *big.Float {
 	eth.SetInt(wei)
 	eth.Quo(eth, new(big.Float).SetInt(weiPerEth))
 
-	return eth
+	return BigFloatToFloat64AndString(eth)
+}
+func BigFloatToFloat64AndString(f *big.Float) (float64, string, error) {
+	// 将 big.Float 转换为字符串
+	str := f.Text('f', -1)
+
+	// 将字符串转换为 float64
+	value, err := strconv.ParseFloat(str, 64)
+	if err != nil {
+		return 0.0, "", err
+	}
+
+	return value, str, nil
 }
 
 // ConvertTokenValue 根据指定的decimal转换token的值
@@ -91,7 +102,7 @@ func interfaceToData(dataItem interface{}, dataType string) (string, bool) {
 		if bytes32V, ok := dataItem.([32]byte); ok {
 			dataResult, dataOk = common.BytesToHash(bytes32V[:]).Hex(), true
 		}
-	case "uint256", "int256":
+	case "uint256", "int256", "uint112":
 		if uint256V, uint256Ok := dataItem.(*big.Int); uint256Ok {
 			dataResult, dataOk = uint256V.String(), true
 		}
@@ -137,7 +148,7 @@ func hexToData(inputType string, hash common.Hash) string {
 	var dataResult string
 	switch inputType {
 	case "address":
-		dataResult = utils.ConvertAddressEth(hash)
+		dataResult = common.HexToAddress(hash.String()).String()
 	case "uint8", "uint16", "uint32", "uint64", "int8", "int16", "int32", "int64", "float32", "float64":
 		dataResult = hash.Big().String()
 	default:

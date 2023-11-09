@@ -112,18 +112,21 @@ type EsTrans struct {
 
 // InternalTxn 交易内部信息
 type InternalTxn struct {
-	Id              string `json:"id"`           //ID
-	TraceAddress    string `json:"traceAddress"` //路径
-	TraceAddressInt []int64
-	//Init            string  `json:"init"`  //合同初始化字节码
-	FromAddr  string  `json:"fromAddr"`  //内部交易发起方
-	ToAddr    string  `json:"toAddr"`    //内部交易接收方
-	InputTx   string  `json:"inputTx"`   //内部交易输入
-	OutputTx  string  `json:"outputTx"`  //内部交易输出
-	Value     float64 `json:"value"`     //转账金额
-	ValueText string  `json:"valueText"` //转账金额-text
-	SubTraces int64   `json:"subtraces"` //子交易个数
-	CallType  string  `json:"callType"`  //调用类型:call、staticcall（静态调用是一种不会修改合约状态的调用方式，它仅用于查询合约状态而不会进行任何状态变更。）
+	Id              string  `json:"id"`           //ID
+	TraceAddress    string  `json:"traceAddress"` //路径
+	TraceAddressInt []int64 //临时存储traceAddress
+	Init            string  `json:"init"`      //合同初始化字节码
+	Address         string  `json:"address"`   //如果这是一个合约初始化交易，则表示新合约的地址，否则为空
+	Code            string  `json:"code"`      //合约字节码文件。如果这是一个合约初始化交易，则包含合约的字节码，否则为空
+	Type            string  `json:"type"`      //交易类型 create：表示这是一个合约初始化交易  call表示为一个普通 合约调用交易
+	FromAddr        string  `json:"fromAddr"`  //内部交易发起方
+	ToAddr          string  `json:"toAddr"`    //内部交易接收方
+	InputTx         string  `json:"inputTx"`   //内部交易输入
+	OutputTx        string  `json:"outputTx"`  //内部交易输出
+	Value           float64 `json:"value"`     //转账金额
+	ValueText       string  `json:"valueText"` //转账金额-text
+	SubTraces       int64   `json:"subtraces"` //子交易个数
+	CallType        string  `json:"callType"`  //合约调用类型:call、staticcall（静态调用是一种不会修改合约状态的调用方式，它仅用于查询合约状态而不会进行任何状态变更。）
 }
 
 // Logs 交易中的日志信息

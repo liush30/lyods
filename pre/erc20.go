@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// GetContractAddressToDb 根据指定文件,将文件中的数据存储到数据库中（token数据）
 func GetContractAddressToDb(path string) error {
 	file, err := os.Open(path)
 	if err != nil {

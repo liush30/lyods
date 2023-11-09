@@ -31,11 +31,10 @@ const (
 	BTC_ADDR_BLOCKCHAIN = `https://blockchain.info/rawaddr/`          //BTC根据指定地址查询交易信息api
 	BTC_PAGRSIZE        = "50"
 	BTC_INIT_PAGE       = "1"
-	//BTC_CHAIN           = "bitcoin"
-	BTC_ADDRESS = "https://chain.api.btc.com/v3/address/" //获取btc指定地址信息
+	BTC_ADDRESS         = "https://chain.api.btc.com/v3/address/" //获取btc指定地址信息
 )
 
-// eth
+// evm
 const (
 	ETH_KEY1        = "G3VRF1S7IMYSSP3D9J8KKUMJY61XT4EK2Q"
 	ETH_KEY2        = "UGE82ZM6XAU15BR5C5JVKSBMRM8DA3TQ4A"
@@ -46,4 +45,9 @@ const (
 	ETH_ADDR_ETHSCAN = "https://api.etherscan.io/api?module=account&action=txlist&page=1&offset=50&startblock="
 	ETH_MAX_TRANS    = 10000
 	ETH_ABI          = "https://api.etherscan.io/api?module=contract&action=getabi&apikey="
+)
+const (
+	BNB_KEY1       = "VM4NA84WJVKVMMMITVY3VH8RWZB7217C8H"
+	BNB_MAX_SECOND = 5
+	BNB_MAX_DAY    = 100000
 )

@@ -14,7 +14,7 @@ import (
 	"lyods-adsTool/pkg/constants"
 	"lyods-adsTool/pkg/utils"
 	"lyods-adsTool/services/bitcoin"
-	"lyods-adsTool/services/eth"
+	"lyods-adsTool/services/evm"
 	"os"
 	"regexp"
 	"strconv"
@@ -143,7 +143,7 @@ func GetAddrListByJSONOnBitcoin(url string, bitClient *bitcoin.BitClient, c *es.
 // 检查请求状态
 
 // GetAddrListOnCsv 根据url获得csv格式的地址名单-批量获取address,获取index列的数据
-func GetAddrListOnCsv(url string, c *es.ElasticClient, e *eth.EthClient) error {
+func GetAddrListOnCsv(url string, c *es.ElasticClient, e *evm.EthClient) error {
 	var err error
 	//风险地址名单
 	//var addrList []domain.WalletAddr
@@ -217,12 +217,12 @@ func GetAddrListOnCsv(url string, c *es.ElasticClient, e *eth.EthClient) error {
 				//}
 				//_, block, err := e.GetTxListOnEth(addrStr, constants.ETH_START_BLOCK)
 				//if err != nil {
-				//	return fmt.Errorf("fail get %s tx list on eth:%v", addrStr, err)
+				//	return fmt.Errorf("fail get %s tx list on evm:%v", addrStr, err)
 				//}
 				//for block == "" {
 				//	_, block, err = e.GetTxListOnEth(addrStr, constants.ETH_START_BLOCK)
 				//	if err != nil {
-				//		return fmt.Errorf("fail get %s tx list on eth:%v", addrStr, err)
+				//		return fmt.Errorf("fail get %s tx list on evm:%v", addrStr, err)
 				//	}
 				//}
 			}
@@ -234,12 +234,13 @@ func GetAddrListOnCsv(url string, c *es.ElasticClient, e *eth.EthClient) error {
 type RClient struct {
 	EsClient *es.ElasticClient
 	BtClient *bitcoin.BitClient
-	EtClient *eth.EthClient
-	CbClient *eth.ChainBaseClient
+	EtClient *evm.EthClient
+	CbClient *evm.ChainBaseClient
 }
 
 // GetAddrListOnXmlByElement 根据url获取xml格式的地址名单-根据访问元素，查询所在链以及地址
-// 目前链[XBT(BTC), ETH,BSC(bnb),ARB,
+// 目前链[XBT(BTC), ETH,
+// BSC(bnb),ARB,
 // LTC
 // XMR
 // ETC
@@ -379,12 +380,8 @@ func (r *RClient) GetAddrListOnXmlByElement(path string) error {
 						//若该地址已经存在，则增加地址来源
 						if isExist {
 							log.Printf("%s信息已存在,添加该数据来源\n", idNumberValue)
-							//r.EsClient.AddDsAddrSource(idNumberValue, dsAddrInfo)
+							r.EsClient.AddDsAddrSource(idNumberValue+"_"+chain, dsAddrInfo)
 						} else {
-							//addrBalance, err := bitcoin.GetAddressInfo(bitClient, idNumberValue)
-							if err != nil {
-								return fmt.Errorf("fail get address info:%v", err)
-							}
 							//地址不存在，则新建风险名单信息,并存储到es中
 							walletAddr := domain.WalletAddr{
 								WaAddr:      idNumberValue,
@@ -398,11 +395,7 @@ func (r *RClient) GetAddrListOnXmlByElement(path string) error {
 								//Balance:     addrBalance,
 							}
 							walletAddr.AddressId = idNumberValue + "_" + chain
-							err = r.EsClient.Insert(constants.ES_ADDRESS, walletAddr.AddressId, walletAddr)
-							if err != nil {
-								return fmt.Errorf("fail insert %s to addr_list:%v", idNumberValue+"_"+walletAddr.WaChain, err)
-							}
-							if chain == constants.SDN_CHAIN_BTC {
+							if chain == constants.CHAIN_BTC {
 								//查询该地址的交易信息
 								_, _, err := bitcoin.GetTxListByBtcCom(r.BtClient, r.EsClient, idNumberValue, constants.BTC_INIT_PAGE)
 								if err != nil {
@@ -423,12 +416,33 @@ func (r *RClient) GetAddrListOnXmlByElement(path string) error {
 								//	}
 								//}
 								//--------------------------------------------------------------------------
+								//获取账户的余额
+								addrBalance, err := bitcoin.GetAddressInfo(r.BtClient, idNumberValue)
+								if err != nil {
+									return fmt.Errorf("fail get bitcoin address balance info:%v", err)
+								}
+								walletAddr.Balance = addrBalance
 							} else if chain == constants.SDN_CHAIN_ETH {
 								_, _, err := r.EtClient.GetTxListOnEth(r.EsClient, r.CbClient, idNumberValue, "0")
 								if err != nil {
-									return fmt.Errorf("fail get tx list on eth:%v", err)
+									return fmt.Errorf("fail get tx list on evm:%v", err)
 								}
+								//获取账户余额
+								addrBalance, err := r.EtClient.GetBalance(idNumberValue, nil)
+								if err != nil {
+									return fmt.Errorf("fail get ethereum address balance info:%v", err)
+								}
+								balanceFloat, _, err := evm.WeiToEth(addrBalance)
+								if err != nil {
+									return fmt.Errorf("fail convert wei to evm:%v", err)
+								}
+								walletAddr.Balance = balanceFloat
 							}
+							err = r.EsClient.Insert(constants.ES_ADDRESS, walletAddr.AddressId, walletAddr)
+							if err != nil {
+								return fmt.Errorf("fail insert %s to addr_list:%v", idNumberValue+"_"+walletAddr.WaChain, err)
+							}
+							time.Sleep(time.Second * 2)
 						}
 					}
 				}

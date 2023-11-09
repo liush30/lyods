@@ -130,7 +130,7 @@ func GetAddressInfo(bitClient *BitClient, addr string) (float64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("get balance Error:%v", err)
 	}
-	balanceFloat, _ := ConvertSatoshiToBTC(big.NewInt(int64(balance)))
+	balanceFloat, _ := ConvertSatoshiToBTC(big.NewInt(balance))
 	return balanceFloat, nil
 
 }

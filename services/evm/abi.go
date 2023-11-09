@@ -1,4 +1,4 @@
-package eth
+package evm
 
 import (
 	"database/sql"

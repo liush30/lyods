@@ -315,7 +315,19 @@ const TRANS_MAPPING = `
                     },
                     "callType":{
                         "type":"keyword"
-                    }
+                    },
+					"init":{
+						"type":"text"
+					},
+					"address":{
+						"type":"keyword"
+					},
+					"code":{
+						"type":"text"
+					},
+					"type":{
+						"type":"keyword"
+					}
                 }
             },
             "logs":{

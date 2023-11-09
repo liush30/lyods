@@ -3,8 +3,8 @@
 //import (
 //	"context"
 //	"fmt"
-//	"github.com/eth/go-eth/common"
-//	"github.com/eth/go-eth/ethclient"
+//	"github.com/evm/go-evm/common"
+//	"github.com/evm/go-evm/ethclient"
 //	"log"
 //	"regexp"
 //)
@@ -162,7 +162,7 @@ func main() {
 	//if err != nil {
 	//	fmt.Println("出错啦", err.Error())
 	//}
-	//list, err := eth.GetTraceTransaction("0x2d25001f57fe2c695771bb3a52a3904a153d0265ec7691bb7fe01e1c748a36a2")
+	//list, err := evm.GetTraceTransaction("0x2d25001f57fe2c695771bb3a52a3904a153d0265ec7691bb7fe01e1c748a36a2")
 	//if err != nil {
 	//	log.Println("出错了")
 	//	return
@@ -227,7 +227,7 @@ func main() {
 	// 计算余额变化
 	//balanceChange := new(big.Int).Sub(balanceAfter, balanceBefore)
 	//fmt.Println("变化为：", balanceChange)
-	//client := eth.EthClient{MClient: createClient(), Client: createEthClient()}
+	//client := evm.EthClient{MClient: createClient(), Client: createEthClient()}
 	//iii, err := client.GetBalanceChange(big.NewInt(9162124), "0xefAB18983029d2BA840E34698eFb67fDF8120711")
 	//if err != nil {
 	//	fmt.Println("Fail GetBalanceChange:", err.Error())
@@ -490,7 +490,7 @@ func main() {
 	//		TWARKey:    uuid.New().String(),
 	//		CID:        1,
 	//		TWAddr:     "0x4Fabb145d64652a948d72533023f6E7A623C7C53",
-	//		TWChain:    "eth",
+	//		TWChain:    "evm",
 	//		TWType:     "1",
 	//		AddType:    "1",
 	//		AddrIll:    "BUSD",
@@ -505,7 +505,7 @@ func main() {
 	//		TWARKey:    uuid.New().String(),
 	//		CID:        1,
 	//		TWAddr:     "0x0000000000085d4780B73119b644AE5ecd22b376",
-	//		TWChain:    "eth",
+	//		TWChain:    "evm",
 	//		TWType:     "1",
 	//		AddType:    "1",
 	//		AddrIll:    "TrueUSD: TUSD Token",
@@ -520,7 +520,7 @@ func main() {
 	//		TWARKey:    uuid.New().String(),
 	//		CID:        1,
 	//		TWAddr:     "0x853d955aCEf822Db058eb8505911ED77F175b99e",
-	//		TWChain:    "eth",
+	//		TWChain:    "evm",
 	//		TWType:     "1",
 	//		AddType:    "1",
 	//		AddrIll:    "FRAX",
@@ -535,7 +535,7 @@ func main() {
 	//		TWARKey:    uuid.New().String(),
 	//		CID:        1,
 	//		TWAddr:     "0x0C10bF8FcB7Bf5412187A595ab97a3609160b5c6",
-	//		TWChain:    "eth",
+	//		TWChain:    "evm",
 	//		TWType:     "1",
 	//		AddType:    "1",
 	//		AddrIll:    "USDD",

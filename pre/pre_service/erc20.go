@@ -6,10 +6,10 @@ import (
 	"log"
 	"lyods-adsTool/db"
 	"lyods-adsTool/pkg/constants"
-	"lyods-adsTool/services/eth"
+	"lyods-adsTool/services/evm"
 )
 
-func processContractAndStore(dbClient *sql.DB, e *eth.EthClient, addr, key, ABIStr string) (bool, error) {
+func processContractAndStore(dbClient *sql.DB, e *evm.EthClient, addr, key, ABIStr string) (bool, error) {
 	proxyAddress := ""
 	var err error
 	switch key {
@@ -43,7 +43,7 @@ func processContractAndStore(dbClient *sql.DB, e *eth.EthClient, addr, key, ABIS
 }
 func processErc20(dbClient *sql.DB, addr, ABIStr string) (bool, error) {
 	//验证合约abi是否符合erc20规范
-	isErc20, err := eth.IsERC20(ABIStr)
+	isErc20, err := evm.IsERC20(ABIStr)
 	if err != nil {
 		return false, fmt.Errorf("%s fail check erc20:%v", addr, err)
 	}
@@ -57,8 +57,9 @@ func processErc20(dbClient *sql.DB, addr, ABIStr string) (bool, error) {
 	return isErc20, nil
 }
 
-func GetABIToDbOnEth(dbClient *sql.DB, e *eth.EthClient) error {
-	addressList, err := db.GetContractAddressAll(dbClient, constants.DB_CHAIN_ETH)
+// GetABIToDbOnEth 查询数据库中的erc20信息，存储ethereum erc20 abi信息
+func GetABIToDbOnEth(dbClient *sql.DB, e *evm.EthClient, chain string) error {
+	addressList, err := db.GetContractAddressAll(dbClient, chain)
 	if err != nil {
 		return fmt.Errorf("fail get contract address list by db: %v", err)
 	}
@@ -71,7 +72,7 @@ func GetABIToDbOnEth(dbClient *sql.DB, e *eth.EthClient) error {
 			continue
 			//若合约是未被验证的状态则直接存储到数据库
 		} else if ABIStr == constants.ABI_NO {
-			err = db.SaveContractABI(dbClient, constants.DB_CHAIN_ETH, addr, ABIStr, "")
+			err = db.SaveContractABI(dbClient, chain, addr, ABIStr, "")
 			if err != nil {
 				return fmt.Errorf("%s contract source code not verified，fail save contract abi:%v", addr, err)
 			}
@@ -103,50 +104,6 @@ func GetABIToDbOnEth(dbClient *sql.DB, e *eth.EthClient) error {
 			if err != nil {
 				log.Println("fail check proxy contract:", err.Error())
 			}
-		}
-	}
-
-	return nil
-}
-func Text(dbClient *sql.DB, e *eth.EthClient, addr string) error {
-	//获取addr Abi
-	ABIStr, err := e.GetContractAbiOnEth(addr)
-	if err != nil {
-		log.Printf("%s fail get contract address abi: %s\n", addr, err.Error())
-		return err
-		//若合约是未被验证的状态则直接存储到数据库
-	} else if ABIStr == constants.ABI_NO {
-		err = db.SaveContractABI(dbClient, constants.DB_CHAIN_ETH, addr, ABIStr, "")
-		if err != nil {
-			return fmt.Errorf("%s contract source code not verified，fail save contract abi:%v", addr, err)
-		}
-		return err
-	}
-	isErc20, err := processErc20(dbClient, addr, ABIStr)
-	if err != nil {
-		log.Println(err.Error())
-		return err
-	}
-	//如果不是erc20合约
-	if !isErc20 {
-		success, err := processContractAndStore(dbClient, e, addr, "OpenZeppelin's Unstructured", "")
-		if success {
-			return nil
-		}
-		success, err = processContractAndStore(dbClient, e, addr, "eip1967", "")
-		if success {
-			return nil
-		}
-		success, err = processContractAndStore(dbClient, e, addr, "eip1822", "")
-		if success {
-			return nil
-		}
-		success, err = processContractAndStore(dbClient, e, addr, "eip897", ABIStr)
-		if success {
-			return nil
-		}
-		if err != nil {
-			return fmt.Errorf("fail check proxy contract:%v", err)
 		}
 	}
 

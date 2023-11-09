@@ -67,4 +67,5 @@ const (
 )
 const (
 	DB_CHAIN_ETH = "ethereum"
+	DB_CHAIN_BNB = "bnb"
 )

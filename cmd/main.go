@@ -7,7 +7,7 @@ import (
 	"lyods-adsTool/pkg/constants"
 	"lyods-adsTool/pkg/utils"
 	"lyods-adsTool/services/bitcoin"
-	"lyods-adsTool/services/eth"
+	"lyods-adsTool/services/evm"
 	"lyods-adsTool/services/list"
 	"time"
 )
@@ -25,27 +25,27 @@ func main() {
 	//}
 	//fmt.Println(str)
 	//删除索引
-	//deleteIndex(esClient, constants.ES_ADDRESS)
-	//deleteIndex(esClient, constants.ES_TRANSACTION)
-	//deleteIndex(esClient, constants.ES_ENTITY)
+	deleteIndex(esClient, constants.ES_ADDRESS)
+	deleteIndex(esClient, constants.ES_TRANSACTION)
+	deleteIndex(esClient, constants.ES_ENTITY)
 	//创建不同的索引
-	//createIndex(esClient, constants.ES_ADDRESS, constants.ADDR_MAPPING)
-	//createIndex(esClient, constants.ES_TRANSACTION, constants.TRANS_MAPPING)
-	//createIndex(esClient, constants.ES_ENTITY, constants.ENTITY_MAPPING)
+	createIndex(esClient, constants.ES_ADDRESS, constants.ADDR_MAPPING)
+	createIndex(esClient, constants.ES_TRANSACTION, constants.TRANS_MAPPING)
+	createIndex(esClient, constants.ES_ENTITY, constants.ENTITY_MAPPING)
 	bitClient := bitcoin.BitClient{
 		RequestCount:    0,
 		LastRequestTime: time.Now(),
 		Httpclient:      utils.CreateClient(),
 	}
 	//client := utils.CreateClient()
-	e := eth.CreateEthClient()
-	ethClient := eth.EthClient{
+	e := evm.CreateEthClient()
+	ethClient := evm.EthClient{
 		Client:          e,
 		Key:             []string{constants.ETH_KEY1, constants.ETH_KEY2},
 		LastRequestTime: time.Now(),
 		HTTPClient:      utils.CreateClient(),
 	}
-	cbClient := eth.ChainBaseClient{
+	cbClient := evm.ChainBaseClient{
 		RequestCount:    0,
 		LastRequestTime: time.Now(),
 	}
@@ -62,13 +62,18 @@ func main() {
 	//if err := list.GetAddrListOnCsv(constants.UNISWAP_URL, esClient); err != nil {
 	//	log.Printf("Failed to get risk list from CSV source: %v\n", err)
 	//}
-	//if err := rClient.GetAddrListOnXmlByElement(`D:\Code\GoProjec\lyods-adsTool\sdn.xml`); err != nil {
-	//	log.Printf("Failed to get risk list from XML source: %v\n", err)
-	//}
-	_, _, err = rClient.EtClient.GetTxListOnEth(rClient.EsClient, rClient.CbClient, "0xCEe71753C9820f063b38FDbE4cFDAf1d3D928A80", "0")
-	if err != nil {
+	if err := rClient.GetAddrListOnXmlByElement(`D:\Code\GoProjec\lyods-adsTool\sdn.xml`); err != nil {
 		log.Printf("Failed to get risk list from XML source: %v\n", err)
 	}
+	//_, _, err = rClient.EtClient.GetTxListOnEth(rClient.EsClient, rClient.CbClient, "0xF67721A2D8F736E75a49FdD7FAd2e31D8676542a", "0")
+	//if err != nil {
+	//	log.Printf("Failed to get risk list from XML source: %v\n", err)
+	//}
+	//interTx, err := evm.GetTraceTransaction(rClient.CbClient, "0xfbe35150a2bd11d2fa1b7ebd25a960433fc6801341a4612151f433cedbaa260d")
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
+	//log.Println(interTx)
 	//fmt.Println(len(list))
 	//dbClient := db.GetDb()
 	//defer dbClient.Close()
@@ -98,8 +103,8 @@ func main() {
 	//if err != nil {
 	//	log.Printf("Failed to add sdn record: %v\n", err)
 	//}
-	//ethClient := eth.EthClient{
-	//	eth.CreateEthClient(),
+	//ethClient := evm.EthClient{
+	//	evm.CreateEthClient(),
 	//}
 	//blockNumber, err := ethClient.GetLatestBlockNumber()
 	//if err != nil {
@@ -108,11 +113,11 @@ func main() {
 	//err = db.AddUpdateRecord(dbClient, domain.UpdateLog{
 	//	LogKey:       utils.GenerateUuid(),
 	//	UpdateDate:   time.Now().Format(time.DateTime),
-	//	UpdateName:   "eth-block",
+	//	UpdateName:   "evm-block",
 	//	UpdateRecord: strconv.Itoa(int(blockNumber)),
 	//})
 	//if err != nil {
-	//	log.Printf("Failed to add eth-block record: %v\n", err)
+	//	log.Printf("Failed to add evm-block record: %v\n", err)
 	//}
 	//btcBlock, err := bitcoin.GetLatestBlockNumber(*utils.CreateClient())
 	//if err != nil {

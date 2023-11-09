@@ -83,14 +83,12 @@ func parseDate(dateString string) (time.Time, error) {
 	formats := []string{"2006", "Jan 2006", "02 Jan 2006", "02 Jan 2006 to 02 Jan 2006"}
 	var parsedDate time.Time
 	var err error
-
 	for _, format := range formats {
 		parsedDate, err = time.Parse(format, dateString)
 		if err == nil {
 			break
 		}
 	}
-
 	return parsedDate, err
 }
 

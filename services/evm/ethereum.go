@@ -1,4 +1,4 @@
-package eth
+package evm
 
 import (
 	"bytes"
@@ -30,6 +30,10 @@ type ContractMap struct {
 	hasProxy bool
 	ProxyABI string
 	IsCheck  bool
+}
+type field struct {
+	constantKeys []string
+	field        interface{}
 }
 
 // GetTxListOnEth 查询指定外部账户的所有交易信息
@@ -71,10 +75,18 @@ func (e *EthClient) GetTxListOnEth(c *es.ElasticClient, cbClient *ChainBaseClien
 			log.Printf("Error processing transaction: %v", err)
 			return
 		}
-
+		var toAddressIsContract bool
+		if !isContract {
+			//判断to是否为合约地址
+			toAddressIsContract, err = e.IsContractAddress(trans.Out[0].Addr)
+			if err != nil {
+				log.Printf("Error getting contract address: %v", err)
+				return
+			}
+		}
 		var traceTran []domain.InternalTxn
-		//查询合约地址且交易未出错的交易中的内部交易信息
-		if isContract && trans.IsError == "0" {
+		//查询合约地址且交易未出错的交易或to地址为合约地址的交易中的内部交易信息
+		if isContract && trans.IsError == "0" || toAddressIsContract && trans.IsError == "0" {
 			// 查询交易内部的trace tx信息
 			traceTran, err = GetTraceTransaction(cbClient, trans.Hash)
 			if err != nil {
@@ -163,7 +175,6 @@ func processTrans(value []byte, addr string) (domain.EsTrans, error) {
 		key := f.constantKey
 		val, err := jsonparser.GetString(value, key)
 		if err != nil {
-			log.Println(string(value))
 			return trans, fmt.Errorf("fail to get '%s': %v", key, err)
 		}
 
@@ -174,18 +185,21 @@ func processTrans(value []byte, addr string) (domain.EsTrans, error) {
 			// 将值转换为 *big.Int
 			intVal, success := new(big.Int).SetString(val, 10)
 			if !success {
-				return trans, fmt.Errorf("failed to convert '%s' to *big.Int", key)
+				return domain.EsTrans{}, fmt.Errorf("failed to convert '%s' to *big.Int", key)
 			}
 
 			// 调用 WeiToEth 函数将 *big.Int 转换为 *big.Float
-			floatVal := WeiToEth(intVal)
-			*v, _ = floatVal.Float64()
+			floatVal, floatStr, err := WeiToEth(intVal)
+			if err != nil {
+				return domain.EsTrans{}, fmt.Errorf("failed to convert '%s' to *big.Float", key)
+			}
+			*v = floatVal
 			// 设置 *big.Float 值
-			trans.ValueText = floatVal.String()
+			trans.ValueText = floatStr
 		case *int64: // 处理 int64 类型字段
 			intVal, err := strconv.ParseInt(val, 10, 64)
 			if err != nil {
-				return trans, fmt.Errorf("failed to convert '%s' to int64", key)
+				return domain.EsTrans{}, fmt.Errorf("failed to convert '%s' to int64", key)
 			}
 			*v = intVal
 		}
@@ -229,7 +243,6 @@ func GetTraceTransaction(cbClient *ChainBaseClient, hash string) ([]domain.Inter
 		iTx, err := processTraceTrans(value)
 		if err != nil {
 			log.Printf("%s processTraceTrans error:%v", hash, err.Error())
-			log.Println(string(value))
 			continueLoop = false
 			return
 		}
@@ -242,14 +255,71 @@ func GetTraceTransaction(cbClient *ChainBaseClient, hash string) ([]domain.Inter
 	}
 	return iTxList, nil
 }
-
-// 解析交易内部trace交易信息
 func processTraceTrans(value []byte) (domain.InternalTxn, error) {
-	type field struct {
-		constantKeys []string
-		field        interface{}
+	//获得交易类型
+	typeStr, err := jsonparser.GetString(value, constants.TYPE_KEY)
+	if err != nil {
+		return domain.InternalTxn{}, fmt.Errorf("fail to get '%s': %v", constants.TYPE_KEY, err)
 	}
 	var internalTx domain.InternalTxn
+	internalTx.Type = typeStr
+	if typeStr == constants.TRACR_TYPE_CALL {
+		return processCallTraceTrans(value, &internalTx)
+	}
+	return processCreateTrace(value, &internalTx)
+}
+func processCreateTrace(value []byte, internalTx *domain.InternalTxn) (domain.InternalTxn, error) {
+	fields := []field{
+		{[]string{constants.ACTION_KEY, constants.INIT_KEY}, &internalTx.Init},
+		{[]string{constants.ACTION_KEY, constants.FROM_KEY}, &internalTx.FromAddr},
+		{[]string{constants.ACTION_KEY, constants.VALUE_KEY}, &internalTx.Value},
+		{[]string{constants.RESULT_KEY, constants.ADDRESS_KEY}, &internalTx.Address},
+		{[]string{constants.RESULT_KEY, constants.CODE_KEY}, &internalTx.Code},
+		{[]string{constants.TRACE_ADDRESS_KEY}, &internalTx.TraceAddressInt},
+		{[]string{constants.SUBTRACES_KEY}, &internalTx.SubTraces},
+	}
+	for _, f := range fields {
+		val, _, _, err := jsonparser.Get(value, f.constantKeys...)
+		if err != nil {
+			return domain.InternalTxn{}, fmt.Errorf("fail get '%s': %v", f.constantKeys, err)
+		}
+		switch v := f.field.(type) {
+		case *string:
+			*v = string(val)
+		case *int64:
+			intVal, err := strconv.ParseInt(string(val), 10, 64)
+			if err != nil {
+				return domain.InternalTxn{}, fmt.Errorf("fail to parse int64 from '%s': %v", string(val), err)
+			}
+			*v = intVal
+		case *float64:
+			valueInt, err := utils.HexToBigInt(big.NewInt(0).SetBytes(val).String())
+			if err != nil {
+				return domain.InternalTxn{}, fmt.Errorf("fail convert '%s' to *big.Int:%v", string(val), err)
+			}
+			// 调用 WeiToEth 函数将 *big.Int 转换为 *big.Float
+			floatVal, floatStr, err := WeiToEth(valueInt)
+			if err != nil {
+				return domain.InternalTxn{}, fmt.Errorf("failed to convert '%s' to *big.Float:%v", string(val), err)
+			}
+			*v = floatVal
+			// 设置 *big.Float 值
+			internalTx.ValueText = floatStr
+		case *[]int64:
+			// 解码 JSON 数组
+			err = json.Unmarshal(val, v)
+			if err != nil {
+				return domain.InternalTxn{}, fmt.Errorf("fail unmarshal '%s': %v", string(val), err)
+			}
+		}
+	}
+	internalTx.TraceAddress = utils.JoinInt64SliceToString(internalTx.TraceAddressInt, "_")
+	internalTx.Id = fmt.Sprintf("call_%s", internalTx.TraceAddress)
+	return *internalTx, nil
+}
+
+// 解析内部交易类型为cal的内部trace交易信息
+func processCallTraceTrans(value []byte, internalTx *domain.InternalTxn) (domain.InternalTxn, error) {
 	fields := []field{
 		{[]string{constants.ACTION_KEY, constants.CALL_TYPE_KEY}, &internalTx.CallType},
 		{[]string{constants.ACTION_KEY, constants.FROM_KEY}, &internalTx.FromAddr},
@@ -268,36 +338,38 @@ func processTraceTrans(value []byte) (domain.InternalTxn, error) {
 		switch v := f.field.(type) {
 		case *string:
 			*v = string(val)
-		case *big.Int:
+		case *float64:
 			valueInt, err := utils.HexToBigInt(big.NewInt(0).SetBytes(val).String())
 			if err != nil {
 				return domain.InternalTxn{}, fmt.Errorf("fail convert '%s' to *big.Int:%v", string(val), err)
 			}
-			*v = *valueInt
+			// 调用 WeiToEth 函数将 *big.Int 转换为 *big.Float
+			floatVal, floatStr, err := WeiToEth(valueInt)
+			if err != nil {
+				return domain.InternalTxn{}, fmt.Errorf("failed to convert '%s' to *big.Float:%v", string(val), err)
+			}
+			*v = floatVal
+			// 设置 *big.Float 值
+			internalTx.ValueText = floatStr
 		case *[]int64:
 			// 解码 JSON 数组
 			err = json.Unmarshal(val, v)
 			if err != nil {
 				return domain.InternalTxn{}, fmt.Errorf("fail unmarshal '%s': %v", string(val), err)
 			}
+		case *int64:
+			intVal, err := strconv.ParseInt(string(val), 10, 64)
+			if err != nil {
+				return domain.InternalTxn{}, fmt.Errorf("fail to parse int64 from '%s': %v", string(val), err)
+			}
+			*v = intVal
 		}
+
 	}
 
 	internalTx.TraceAddress = utils.JoinInt64SliceToString(internalTx.TraceAddressInt, "_")
 	internalTx.Id = fmt.Sprintf("call_%s", internalTx.TraceAddress)
-	return internalTx, nil
-}
-
-// 根据chain类型获取地址的内部交易
-func getInternalTransUrl(chainType uint, addr string) string {
-	if chainType == constants.CHAIN_BNB {
-		return getInterUrlBnb(addr)
-	} else if chainType == constants.CHAIN_ETHEREUM {
-		return getInternalEthUrl(addr)
-	} else if chainType == constants.CHAIN_ARBITRUM {
-		return getInterUrlArb(addr)
-	}
-	return ""
+	return *internalTx, nil
 }
 
 // bnb根据地址获取内部交易请求url
@@ -599,7 +671,6 @@ func (e *EthClient) parseVerifyLog(logInfo *types.Log, contractMap *ContractMap)
 		} else if !contractMap.IsCheck {
 			//尝试获取代理合约abi进行解析
 			isProxy, proxyAddress, err := e.IsProxyContract(logInfo.Address.String(), contractMap.ABI)
-			//log.Println("isProxy", isProxy)
 			if err != nil {
 				return domain.Logs{}, domain.Erc20Txn{}, fmt.Errorf("IsProxyContract:fail check %s proxy:%v", logInfo.Address, err)
 			}
@@ -624,7 +695,6 @@ func (e *EthClient) parseVerifyLog(logInfo *types.Log, contractMap *ContractMap)
 		} else {
 			return domain.Logs{}, domain.Erc20Txn{}, fmt.Errorf("ParseTransReceiptByHash:Fail to get event info by %s->%v", logInfo.Topics[0].String(), err.Error())
 		}
-		log.Println("abiOther:", abiOther)
 		contractABI, err = abi.JSON(bytes.NewReader([]byte(abiOther)))
 		if err != nil {
 			return domain.Logs{}, domain.Erc20Txn{}, fmt.Errorf("fail parse abi by abi and proxy abi:%v", err)

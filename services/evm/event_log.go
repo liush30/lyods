@@ -1,6 +1,7 @@
-package eth
+package evm
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"lyods-adsTool/domain"
 	"math/big"
@@ -9,8 +10,8 @@ import (
 func TransferLog(logInfo *types.Log, contractMap *ContractMap) (domain.Logs, domain.Erc20Txn, error) {
 	var topicsInfo []domain.TopicsValStruct
 	//判断该日志记录的是都是转账信息
-	from := logInfo.Topics[1].String()
-	to := logInfo.Topics[2].String()
+	from := common.HexToAddress(logInfo.Topics[1].String()).String()
+	to := common.HexToAddress(logInfo.Topics[2].String()).String()
 	value := big.NewInt(0).SetBytes(logInfo.Data).String()
 	topicsInfo = append(topicsInfo, domain.TopicsValStruct{
 		Key:   "from",

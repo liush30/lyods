@@ -1,4 +1,4 @@
-package eth
+package evm
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"log"
 	"lyods-adsTool/pkg/constants"
-	"lyods-adsTool/tool"
 	"math/big"
 	"strings"
 )
@@ -18,14 +17,19 @@ func (e *EthClient) GetBalanceChange(blockNumber *big.Int, address string) (*big
 	beforeNumber := GetLastBlockNumber(blockNumber)
 
 	// 查询地址在交易前的余额
-	balanceBefore, err := tool.EthClient.BalanceAt(context.Background(), common.HexToAddress(address), beforeNumber)
+	//balanceBefore, err := e.BalanceAt(context.Background(), common.HexToAddress(address), beforeNumber)
+	//if err != nil {
+	//	log.Println("Fail get before balance:", err.Error())
+	//	return nil, err
+	//}
+	balanceBefore, err := e.GetBalance(address, beforeNumber)
 	if err != nil {
 		log.Println("Fail get before balance:", err.Error())
 		return nil, err
 	}
-
+	balanceAfter, err := e.GetBalance(address, blockNumber)
 	// 查询地址在交易后的余额
-	balanceAfter, err := tool.EthClient.BalanceAt(context.Background(), common.HexToAddress(address), blockNumber)
+	//balanceAfter, err := e.BalanceAt(context.Background(), common.HexToAddress(address), blockNumber)
 	if err != nil {
 		log.Println("Fail get after balance:", err.Error())
 		return nil, err
@@ -58,6 +62,15 @@ func (e *EthClient) GetERC20TokenBalance(tokenContractAddress string, accountAdd
 		log.Fatal(err)
 	}
 	return new(big.Int).SetBytes(result), nil
+}
+func (e *EthClient) GetBalance(address string, blockNumber *big.Int) (*big.Int, error) {
+	// 查询地址在交易前的余额
+	balanceBefore, err := e.BalanceAt(context.Background(), common.HexToAddress(address), blockNumber)
+	if err != nil {
+		log.Println("Fail get before balance:", err.Error())
+		return nil, err
+	}
+	return balanceBefore, nil
 }
 
 // GetERC20TokenBalanceChange 查询指定账户在指定 ERC-20 代币合约中的余额变化

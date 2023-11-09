@@ -24,4 +24,12 @@ const (
 	OUTPUT_KEY              = "output"
 	TRACE_ADDRESS_KEY       = "traceAddress"
 	SUBTRACES_KEY           = "subtraces"
+	TYPE_KEY                = "type"
+	INIT_KEY                = "init"
+	ADDRESS_KEY             = "address"
+	CODE_KEY                = "code"
+)
+const (
+	TRACR_TYPE_CALL   = "call"
+	TRACR_TYPE_CREATE = "create"
 )

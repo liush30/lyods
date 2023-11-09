@@ -1,4 +1,4 @@
-package eth
+package evm
 
 import (
 	"context"
@@ -31,7 +31,7 @@ type EthClient struct {
 func CreateEthClient() *ethclient.Client {
 	client, err := ethclient.Dial(constants.URL_INFRUA)
 	if err != nil {
-		log.Fatal("连接失败:", err)
+		log.Fatal("failed to connect:", err)
 		return nil
 	}
 	return client
@@ -64,22 +64,6 @@ func (e *EthClient) CheckRequestStatus() bool {
 	return true
 }
 
-// SendHTTPRequest 根据指定的url发送http请求']
-
-//	func (e *EthClient) SendHTTPRequest(url string) (*http.Response, error) {
-//		isNormalStatus := e.CheckRequestStatus()
-//		if !isNormalStatus {
-//			return nil, fmt.Errorf("the number of requests exceeds the limit")
-//		}
-//		resp, err := e.HTTPClient.Get(url)
-//		if err != nil {
-//			return nil, fmt.Errorf("send http request error:%v", err)
-//		} else if resp.StatusCode != http.StatusOK {
-//			return nil, fmt.Errorf("status code is %s", strconv.Itoa(resp.StatusCode))
-//		}
-//
-//		return resp, nil
-//	}
 func (e *EthClient) SendHTTPRequest(url string) (*http.Response, error) {
 	isNormalStatus := e.CheckRequestStatus()
 	if !isNormalStatus {

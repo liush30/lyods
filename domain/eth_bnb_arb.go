@@ -1,4 +1,4 @@
-// Package domain eth,bnb,arbitrum交易信息结构
+// Package domain evm,bnb,arbitrum交易信息结构
 package domain
 
 // TransactionEthOrBnb TransactionEth 普通交易信息集合
