@@ -28,7 +28,7 @@ func main() {
 	deleteIndex(esClient, constants.ES_ADDRESS)
 	deleteIndex(esClient, constants.ES_TRANSACTION)
 	deleteIndex(esClient, constants.ES_ENTITY)
-	//创建不同的索引
+	////创建不同的索引
 	createIndex(esClient, constants.ES_ADDRESS, constants.ADDR_MAPPING)
 	createIndex(esClient, constants.ES_TRANSACTION, constants.TRANS_MAPPING)
 	createIndex(esClient, constants.ES_ENTITY, constants.ENTITY_MAPPING)
@@ -66,6 +66,7 @@ func main() {
 	if err := rClient.GetAddrListOnXmlByElement(`D:\Code\GoProjec\lyods-adsTool\sdn.xml`); err != nil {
 		log.Printf("Failed to get risk list from XML source: %v\n", err)
 	}
+
 	//_, _, err = rClient.EtClient.GetTxListOnEth(rClient.EsClient, rClient.CbClient, "0xF67721A2D8F736E75a49FdD7FAd2e31D8676542a", "0")
 	//if err != nil {
 	//	log.Printf("Failed to get risk list from XML source: %v\n", err)

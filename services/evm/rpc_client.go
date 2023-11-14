@@ -37,7 +37,7 @@ func (client *ChainBaseClient) CheckRequestStatus() {
 func (client *ChainBaseClient) SendHTTPRequest(hash, chain string) (*http.Response, error) {
 	client.CheckRequestStatus()
 	url := getTraceTransactionUrl(chain)
-	log.Println("url:", url)
+	//log.Println("url:", url)
 	payload := map[string]interface{}{
 		"id":      constants.RPC_ID,
 		"jsonrpc": constants.RPC_VERSION,

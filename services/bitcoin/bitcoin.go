@@ -22,7 +22,7 @@ func (b *BitClient) GetTxListByBlockChain(c *es.ElasticClient, addr string) ([]d
 	//随机休眠几秒
 	var transList []domain.EsTrans
 	//获得url-获取到指定账户的所有交易信息url
-	url := getUrlByBlockChain(addr)
+	url := getAddrTxUrlByBlockChain(addr)
 	//发送http请求-根据url
 	resp, err := b.SendHTTPRequest(url)
 	if err != nil {
@@ -33,21 +33,6 @@ func (b *BitClient) GetTxListByBlockChain(c *es.ElasticClient, addr string) ([]d
 	if err != nil {
 		return nil, 0, fmt.Errorf("read Body Error:%v", err)
 	}
-	//获取交易的总交易数
-	//txNumber, err := jsonparser.GetInt(body, "n_tx")
-	//if err != nil {
-	//	return nil, fmt.Errorf("fail get n_tx:%v", err)
-	//}
-	//获得交易总接收量
-	//totalRe, err := jsonparser.GetInt(body, "total_received")
-	//if err != nil {
-	//	return nil, fmt.Errorf("fail get total_received:%v", err)
-	//}
-	////获取交易总发送量
-	//totalSend, err := jsonparser.GetInt(body, "total_sent")
-	//if err != nil {
-	//	return nil, fmt.Errorf("fail get total_sent:%v", err)
-	//}
 	//获取账户最终余额
 	AddrBalance, err := jsonparser.GetInt(body, "final_balance")
 	if err != nil {
@@ -60,7 +45,7 @@ func (b *BitClient) GetTxListByBlockChain(c *es.ElasticClient, addr string) ([]d
 		trans := processTransactionByBlockChain(value, addr)
 		transList = append(transList, trans)
 		//将交易记录存储到es中
-		err = c.Insert(constants.ES_TRANSACTION, trans.Hash, trans)
+		err = c.Insert(constants.ES_TRANSACTION, strings.ToLower(trans.Hash), trans)
 		if err != nil {
 			log.Println("Insert Transaction Error:", err.Error())
 			return
@@ -71,6 +56,31 @@ func (b *BitClient) GetTxListByBlockChain(c *es.ElasticClient, addr string) ([]d
 		return nil, 0, err
 	}
 	return transList, addrBalanceFloat, nil
+}
+
+// GetTxListByBlockHash 根据区块hash查询该区块的所有交易
+func (b *BitClient) GetTxListByBlockHash(hash string) error {
+	//获取url
+	url := getBlockTxnUrlByHash(hash)
+	//发送http请求
+	resp, err := b.SendHTTPRequest(url)
+	defer resp.Body.Close()
+	if err != nil {
+		return fmt.Errorf("GetTxListByBlockHash: fail send http request error:%v", err.Error())
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("GetTxListByBlockHash:read Body Error:%v", err)
+	}
+	jsonparser.ArrayEach(body, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+
+	}, "tx")
+	return nil
+}
+
+// 扫描区块信息
+func scannerBlock() {
+
 }
 func GetTxListByBtcCom(bitClient *BitClient, c *es.ElasticClient, addr, page string) ([]domain.EsTrans, int64, error) {
 	log.Println("GetTxListByBtcCom:", addr)
@@ -116,7 +126,7 @@ func GetTxListByBtcCom(bitClient *BitClient, c *es.ElasticClient, addr, page str
 		trans := processTransByBtcCom(value, addr)
 		transList = append(transList, trans)
 		//将交易记录存储到es中
-		err = c.Insert(constants.ES_TRANSACTION, trans.Hash, trans)
+		err = c.Insert(constants.ES_TRANSACTION, strings.ToLower(trans.Hash), trans)
 		if err != nil {
 			log.Println("Insert Transaction Error:", err.Error())
 			return
@@ -237,10 +247,9 @@ func processInputsByBlockChain(inputValue []byte) domain.InputsTrans {
 	utils.IsError(err, "Fail get input spent")
 	inputTxIndex, _, _, err := jsonparser.Get(inputValue, "prev_out", "tx_index")
 	utils.IsError(err, "Fail get input tx_index")
-	inputValueVal, _, _, err := jsonparser.Get(inputValue, "prev_out", "value")
+	inputValueVal, err := jsonparser.GetInt(inputValue, "prev_out", "value")
 	utils.IsError(err, "Fail get input value")
-	var result big.Int
-	valueFloat, valueText := ConvertSatoshiToBTC(result.SetBytes(inputValueVal))
+	valueFloat, valueText := ConvertSatoshiToBTC(big.NewInt(inputValueVal))
 	return domain.InputsTrans{
 		Sequence:  inputSequence,
 		Witness:   inputWitness,
@@ -290,7 +299,8 @@ func processOutByBlockChain(outValue []byte) domain.OutTrans {
 	//log.Println("out:", string(outValue))
 	outSpent, err := jsonparser.GetBoolean(outValue, "spent")
 	utils.IsError(err, "Fail get spent")
-	outValueVal, _, _, err := jsonparser.Get(outValue, "value")
+	//outValueVal, _, _, err := jsonparser.Get(outValue, "value")
+	outValueVal, err := jsonparser.GetInt(outValue, "value")
 	utils.IsError(err, "Fail get value")
 	outN, err := jsonparser.GetInt(outValue, "n")
 	utils.IsError(err, "Fail get n")
@@ -303,8 +313,7 @@ func processOutByBlockChain(outValue []byte) domain.OutTrans {
 		utils.IsError(err, "Fail get output addr")
 	}
 	//log.Println(string(outValue))
-	var result big.Int
-	valueFloat, valueText := ConvertSatoshiToBTC(result.SetBytes(outValueVal))
+	valueFloat, valueText := ConvertSatoshiToBTC(big.NewInt(outValueVal))
 	return domain.OutTrans{
 		Spent:     outSpent,
 		Value:     valueFloat,
@@ -316,8 +325,12 @@ func processOutByBlockChain(outValue []byte) domain.OutTrans {
 	}
 }
 func processTransactionByBlockChain(value []byte, addr string) domain.EsTrans {
-	transBlockIndex, _, _, err := jsonparser.Get(value, "block_height")
-	if transBlockIndex == nil {
+	transBlockIndex, dateType, _, err := jsonparser.Get(value, "block_height")
+	if transBlockIndex == nil || dateType == jsonparser.NotExist {
+		return domain.EsTrans{}
+	}
+	if err != nil {
+		log.Println("Fail get block_height:", err.Error())
 		return domain.EsTrans{}
 	}
 	//log.Println("transBlockIndex:", string(transBlockIndex))
@@ -347,33 +360,34 @@ func processTransactionByBlockChain(value []byte, addr string) domain.EsTrans {
 	transBalance, err := jsonparser.GetInt(value, "balance")
 	utils.IsError(err, "Fail get balance")
 	balanceFloat, _ := ConvertSatoshiToBTC(big.NewInt(transBalance))
-	inputValueTotal := new(big.Float)
-	outputValueTotal := new(big.Float)
+	var outputValueTotal, inputValueTotal float64
+	//outputValueTotal := new(big.Float)
 	//log.Println(transHash)
 	//获得out信息
 	jsonparser.ArrayEach(value, func(outValue []byte, dataType jsonparser.ValueType, offset int, err error) {
 		//将单个out信息存储于out list中
 		outTxn := processOutByBlockChain(outValue)
 		outTransList = append(outTransList, outTxn)
-		outputValueTotal.Add(outputValueTotal, new(big.Float).SetFloat64(outTxn.Value))
-
+		//log.Print(outTxn.Value)
+		outputValueTotal += outTxn.Value
+		//if outTxn.Addr == "" {
+		//	log.Println(transHash)
+		//}
 	}, "out")
 	//获取inputs信息
 	jsonparser.ArrayEach(value, func(inputValue []byte, dataType jsonparser.ValueType, offset int, err error) {
 		//将单个inputs信息存储于inputs list中
 		inTxn := processInputsByBlockChain(inputValue)
 		inputTransList = append(inputTransList, inTxn)
-		inputValueTotal.Add(inputValueTotal, new(big.Float).SetFloat64(inTxn.Value))
+		inputValueTotal += inTxn.Value
 	}, "inputs")
-	inputValueTotalFloat, _ := inputValueTotal.Float64()
-	outputValueTotalFloat, _ := outputValueTotal.Float64()
 	return domain.EsTrans{
 		Hash:        transHash,
 		Chain:       constants.CHAIN_BTC,
 		InputCount:  transVinCount,
 		OutputCount: transVoutCount,
-		InputValue:  inputValueTotalFloat,
-		OutputValue: outputValueTotalFloat,
+		InputValue:  inputValueTotal,
+		OutputValue: outputValueTotal,
 		Address:     addr,
 		Size:        transSize,
 		Weight:      transWeight,
@@ -637,29 +651,11 @@ func processOutByBtcCom(outValue []byte) domain.OutTrans {
 //	return addrList, err
 //}
 
-// 遍历交易的输入信息，判断该交易是否为转出
-//
-//	func isTransfer(data []byte, addr string) (bool, error) {
-//		var errTrans error
-//		var isTrue bool
-//		//获取输入信息
-//		_, errTrans = jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-//			//获得交易input（输入）信息的地址
-//			val, err := jsonparser.GetString(value, "prev_out", "addr")
-//			if err != nil {
-//				log.Println("jsonparser GetString Error:", err)
-//				errTrans = err
-//				return
-//			}
-//			//若输入信息中的地址等于addr，说明该交易为地址的转出交易
-//			if addr == val {
-//				isTrue = true
-//			}
-//		}, "inputs")
-//		return isTrue, errTrans
-//	}
-func getUrlByBlockChain(addr string) string {
+func getAddrTxUrlByBlockChain(addr string) string {
 	return constants.BTC_ADDR_BLOCKCHAIN + addr
+}
+func getBlockTxnUrlByHash(hash string) string {
+	return constants.BTC_BLOCK_BLOCKCHAIN + hash
 }
 func getUrlByBtcCom(addr, page string) string {
 	return constants.BTC_ADDR + addr + "/tx?pagesize=" + constants.BTC_PAGRSIZE + "&page=" + page

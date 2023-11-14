@@ -18,6 +18,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -53,15 +54,15 @@ func GetAddrListByJSONOnBitcoin(url string, bitClient *bitcoin.BitClient, c *es.
 			log.Fatal("Fail get address", err.Error())
 		}
 		//获取所在链
-		chain, err := jsonparser.GetString(value, "blockchain")
-		if err != nil {
-			log.Fatal("Fail get blockchain", err.Error())
-		}
+		//chain, err := jsonparser.GetString(value, "blockchain")
+		//if err != nil {
+		//	log.Fatal("Fail get blockchain", err.Error())
+		//}
 		family, err := jsonparser.GetString(value, "family")
 		if err != nil {
 			log.Fatal("Fail get family", err.Error())
 		}
-		id := addrStr + chain
+		id := addrStr + "_" + constants.CHAIN_BTC
 		//将不重复数据存入到addrList中
 		if _, ok := temp[addrStr]; !ok {
 			temp[addrStr] = struct{}{}
@@ -96,7 +97,7 @@ func GetAddrListByJSONOnBitcoin(url string, bitClient *bitcoin.BitClient, c *es.
 				walletAddr := domain.WalletAddr{
 					WaAddr:      addrStr,
 					WaRiskLevel: constants.INIT_LEVEL,
-					WaChain:     "BTC",
+					WaChain:     constants.CHAIN_BTC,
 					DsAddr: []domain.AdsDataSource{
 						dsAddrInfo,
 					},
@@ -104,7 +105,7 @@ func GetAddrListByJSONOnBitcoin(url string, bitClient *bitcoin.BitClient, c *es.
 					Balance:     addrBalance,
 				}
 				//将风险名单信息存储至风险名单中，id=地址+所在链
-				err = c.Insert(constants.ES_ADDRESS, id, walletAddr)
+				err = c.Insert(constants.ES_ADDRESS, strings.ToUpper(id), walletAddr)
 				if err != nil {
 					log.Println("Fail inset risk address to es", err.Error())
 					return
@@ -211,7 +212,7 @@ func GetAddrListOnCsv(url string, c *es.ElasticClient, e *evm.EVMClient) error {
 					},
 					IsNeedTrace: true,
 				}
-				err = c.Insert(constants.ES_ADDRESS, addrStr, walletAddr)
+				err = c.Insert(constants.ES_ADDRESS, strings.ToUpper(addrStr+"_"+walletAddr.WaChain), walletAddr)
 				//if err != nil {
 				//	return fmt.Errorf("fail insert %s to addr_list:%v", addrStr, err)
 				//}
@@ -439,7 +440,7 @@ func (r *RClient) GetAddrListOnXmlByElement(path string) error {
 								}
 								walletAddr.Balance = balanceFloat
 							}
-							err = r.EsClient.Insert(constants.ES_ADDRESS, walletAddr.AddressId, walletAddr)
+							err = r.EsClient.Insert(constants.ES_ADDRESS, strings.ToUpper(walletAddr.AddressId), walletAddr)
 							if err != nil {
 								return fmt.Errorf("fail insert %s to addr_list:%v", idNumberValue+"_"+walletAddr.WaChain, err)
 							}

@@ -29,13 +29,14 @@ const (
 
 // bitcoin
 const (
-	BTC_BLOCK           = "https://chain.api.btc.com/v3/block/latest" //btc.com 获取最新区块
-	BTC_ADDR            = "https://chain.api.btc.com/v3/address/"     //一分钟请求6次
-	BTC_ADDR_BLOCKCHAIN = `https://blockchain.info/rawaddr/`          //BTC根据指定地址查询交易信息api
-	BTC_LIMIT           = "5000"
-	BTC_PAGRSIZE        = "50"
-	BTC_INIT_PAGE       = "1"
-	BTC_ADDRESS         = "https://chain.api.btc.com/v3/address/" //获取btc指定地址信息
+	BTC_BLOCK            = "https://chain.api.btc.com/v3/block/latest" //btc.com 获取最新区块
+	BTC_ADDR             = "https://chain.api.btc.com/v3/address/"     //一分钟请求6次
+	BTC_ADDR_BLOCKCHAIN  = `https://blockchain.info/rawaddr/`          //BTC根据指定地址查询交易信息api
+	BTC_LIMIT            = "5000"
+	BTC_PAGRSIZE         = "50"
+	BTC_INIT_PAGE        = "1"
+	BTC_ADDRESS          = "https://chain.api.btc.com/v3/address/" //获取btc指定地址信息
+	BTC_BLOCK_BLOCKCHAIN = "https://blockchain.info/rawblock/"
 )
 
 // evm
