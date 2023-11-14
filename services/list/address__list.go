@@ -143,7 +143,7 @@ func GetAddrListByJSONOnBitcoin(url string, bitClient *bitcoin.BitClient, c *es.
 // 检查请求状态
 
 // GetAddrListOnCsv 根据url获得csv格式的地址名单-批量获取address,获取index列的数据
-func GetAddrListOnCsv(url string, c *es.ElasticClient, e *evm.EthClient) error {
+func GetAddrListOnCsv(url string, c *es.ElasticClient, e *evm.EVMClient) error {
 	var err error
 	//风险地址名单
 	//var addrList []domain.WalletAddr
@@ -232,10 +232,11 @@ func GetAddrListOnCsv(url string, c *es.ElasticClient, e *evm.EthClient) error {
 }
 
 type RClient struct {
-	EsClient *es.ElasticClient
-	BtClient *bitcoin.BitClient
-	EtClient *evm.EthClient
-	CbClient *evm.ChainBaseClient
+	EsClient  *es.ElasticClient
+	BtcClient *bitcoin.BitClient
+	EthClient *evm.EVMClient
+	CbClient  *evm.ChainBaseClient
+	BscClient *evm.EVMClient
 }
 
 // GetAddrListOnXmlByElement 根据url获取xml格式的地址名单-根据访问元素，查询所在链以及地址
@@ -397,7 +398,7 @@ func (r *RClient) GetAddrListOnXmlByElement(path string) error {
 							walletAddr.AddressId = idNumberValue + "_" + chain
 							if chain == constants.CHAIN_BTC {
 								//查询该地址的交易信息
-								_, _, err := bitcoin.GetTxListByBtcCom(r.BtClient, r.EsClient, idNumberValue, constants.BTC_INIT_PAGE)
+								_, addrBalance, err := r.BtcClient.GetTxListByBlockChain(r.EsClient, idNumberValue)
 								if err != nil {
 									return fmt.Errorf("fail get tx list on btc:%v", err)
 								}
@@ -417,18 +418,18 @@ func (r *RClient) GetAddrListOnXmlByElement(path string) error {
 								//}
 								//--------------------------------------------------------------------------
 								//获取账户的余额
-								addrBalance, err := bitcoin.GetAddressInfo(r.BtClient, idNumberValue)
-								if err != nil {
-									return fmt.Errorf("fail get bitcoin address balance info:%v", err)
-								}
+								//addrBalance, err := bitcoin.GetAddressInfo(r.BtcClient, idNumberValue)
+								//if err != nil {
+								//	return fmt.Errorf("fail get bitcoin address balance info:%v", err)
+								//}
 								walletAddr.Balance = addrBalance
 							} else if chain == constants.SDN_CHAIN_ETH {
-								_, _, err := r.EtClient.GetTxListOnEth(r.EsClient, r.CbClient, idNumberValue, "0")
+								_, _, err := r.EthClient.GetTxList(r.EsClient, r.CbClient, idNumberValue, "0")
 								if err != nil {
 									return fmt.Errorf("fail get tx list on evm:%v", err)
 								}
 								//获取账户余额
-								addrBalance, err := r.EtClient.GetBalance(idNumberValue, nil)
+								addrBalance, err := r.EthClient.GetBalance(idNumberValue, nil)
 								if err != nil {
 									return fmt.Errorf("fail get ethereum address balance info:%v", err)
 								}

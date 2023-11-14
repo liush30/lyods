@@ -167,6 +167,9 @@ const TRANS_MAPPING = `
             "address":{
                 "type":"keyword"
             },
+           "balance":{
+               "type":"double"
+            },
             "size":{
                 "type":"long"
             },

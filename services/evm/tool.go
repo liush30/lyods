@@ -33,12 +33,20 @@ func getNormalTransUrl(addr string) string {
 	return constants.API_ETH_TRANS + addr
 }
 
-func getTraceTransactionUrl() string {
-	return constants.URL_CHAINBASE + config.CHAINBASE_KEY
+func getTraceTransactionUrl(chain string) string {
+	switch chain {
+	case constants.CHAIN_ETH:
+		return constants.HTTP_CHAINBASE_ETH + config.CHAINBASE_KEY
+	case constants.CHAIN_BSC:
+		return constants.HTTP_CHAINBASE_BSC + config.CHAINBASE_KEY
+	default:
+		return ""
+	}
+
 }
 
 // IsContractAddress 判断地址是否为合约地址-以太坊
-func (e *EthClient) IsContractAddress(addressStr string) (bool, error) {
+func (e *EVMClient) IsContractAddress(addressStr string) (bool, error) {
 	//获取字节码信息
 	bytecode, err := e.CodeAt(context.Background(), common.HexToAddress(addressStr), nil)
 	if err != nil {

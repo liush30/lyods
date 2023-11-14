@@ -7,9 +7,11 @@ const (
 	HTTP_POST = "POST"
 )
 const (
-	BTC_MAX_REQUEST = 6           //最大请求次数
-	BTC_PER_MINUTE  = time.Minute //等待时间段
+	BTC_MAX_REQUEST = 1                //最大请求次数
+	BTC_PER_MINUTE  = 10 * time.Second //等待时间段
+	BTC_MAX_LIMIT   = "5000"
 )
+
 const (
 	CHAIN_DASH     = iota //所在链-DASH
 	CHAIN_BITGOLD         //所在链-BITGOLD
@@ -21,6 +23,7 @@ const (
 const (
 	CHAIN_ETH = "ETH"
 	CHAIN_BTC = "BTC"
+	CHAIN_BSC = "BSC"
 )
 
 // 风险名单来源类型

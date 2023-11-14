@@ -36,8 +36,8 @@ type field struct {
 	field        interface{}
 }
 
-// GetTxListOnEth 查询指定外部账户的所有交易信息
-func (e *EthClient) GetTxListOnEth(c *es.ElasticClient, cbClient *ChainBaseClient, addr, startBlock string) ([]domain.EsTrans, string, error) {
+// GetTxList 查询指定外部账户的所有交易信息
+func (e *EVMClient) GetTxList(c *es.ElasticClient, cbClient *ChainBaseClient, addr, startBlock string) ([]domain.EsTrans, string, error) {
 	//查询该地址是否为合约地址
 	isContract, err := e.IsContractAddress(addr)
 	fmt.Println("GetTxListOnEth:", addr, "isContract:", isContract)
@@ -45,7 +45,12 @@ func (e *EthClient) GetTxListOnEth(c *es.ElasticClient, cbClient *ChainBaseClien
 		return nil, "", fmt.Errorf("GetTxListOnEth IsContractAddress error: %v", err)
 	}
 	// 获取URL以获取指定账户的所有交易信息
-	url := getNormalUrlEth(addr, startBlock, e.GetKey())
+	url := e.getNormalUrl(addr, startBlock, e.GetKey())
+	//判断url是否为空
+	//if url ==""{
+	//
+	//}
+	//log.Println("GetTxListOnEth:", url)
 	// 发送HTTP请求
 	resp, err := e.SendHTTPRequest(url)
 	if err != nil {
@@ -88,7 +93,7 @@ func (e *EthClient) GetTxListOnEth(c *es.ElasticClient, cbClient *ChainBaseClien
 		//查询合约地址且交易未出错的交易或to地址为合约地址的交易中的内部交易信息
 		if isContract && trans.IsError == "0" || toAddressIsContract && trans.IsError == "0" {
 			// 查询交易内部的trace tx信息
-			traceTran, err = GetTraceTransaction(cbClient, trans.Hash)
+			traceTran, err = e.GetTraceTransaction(cbClient, trans.Hash)
 			if err != nil {
 				log.Printf("Error getting trace transaction: %v", err)
 				return
@@ -112,6 +117,19 @@ func (e *EthClient) GetTxListOnEth(c *es.ElasticClient, cbClient *ChainBaseClien
 		trans.Logs = logs
 		trans.Erc20Txn = erc20Txs
 		trans.Chain = constants.CHAIN_ETH
+		blockNumberInt, _ := big.NewInt(0).SetString(trans.BlockHeight, 10)
+		//获取当时交易时的余额
+		balanceInt, err := e.GetBalance(addr, blockNumberInt)
+		if err != nil {
+			log.Println("GetBalance Error:", err.Error())
+			return
+		}
+		balanceFloat, _, err := WeiToEth(balanceInt)
+		if err != nil {
+			log.Println("WeiToEth Error:", err.Error())
+			return
+		}
+		trans.Balance = balanceFloat
 		// 查询交易内部的ERC20转账交易信息
 		taskList = append(taskList, trans)
 		hashCount++
@@ -216,13 +234,14 @@ func processTrans(value []byte, addr string) (domain.EsTrans, error) {
 		return trans, fmt.Errorf("failed to convert '%s' to *big.Int", constants.TIME_STAMP_KEY)
 	}
 	trans.Time = utils.UnixToTime(timeBigInt.Int64())
+
 	return trans, nil
 }
 
 // GetTraceTransaction 获取指定交易hash的trace交易信息
-func GetTraceTransaction(cbClient *ChainBaseClient, hash string) ([]domain.InternalTxn, error) {
+func (e *EVMClient) GetTraceTransaction(cbClient *ChainBaseClient, hash string) ([]domain.InternalTxn, error) {
 	var iTxList []domain.InternalTxn
-	res, err := cbClient.SendHTTPRequest(hash)
+	res, err := cbClient.SendHTTPRequest(hash, e.Chain)
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 
@@ -383,8 +402,16 @@ func getInternalEthUrl(addr string) string {
 }
 
 // ethereum根据地址获取普通交易请求url
-func getNormalUrlEth(addr, startBlock, key string) string {
-	return constants.ETH_ADDR_ETHSCAN + startBlock + "&address=" + addr + "&apikey=" + key
+func (e *EVMClient) getNormalUrl(addr, startBlock, key string) string {
+	switch e.Chain {
+	case constants.CHAIN_ETH:
+		return constants.ETH_ADDR_ETHSCAN + startBlock + "&address=" + addr + "&apikey=" + key
+	case constants.CHAIN_BSC:
+		return constants.BSC_ENDPOINTS + constants.BSC_TX_ADDR + startBlock + "&address=" + addr + "&apikey=" + key
+	default:
+		return ""
+	}
+
 }
 
 // arbitrum根据地址获得内部交易url
@@ -395,7 +422,7 @@ func getInterUrlArb(addr string) string {
 // getInternalTxn 根据事件信息进行解析，存储到InternalTxn结构体中
 // eventName 事件名称
 // eventNameToValueByAddress 事件相关参数信息
-func (e *EthClient) getInternalTxn(interParam *InternalTxnParam, internalTxn *domain.InternalTxn) {
+func (e *EVMClient) getInternalTxn(interParam *InternalTxnParam, internalTxn *domain.InternalTxn) {
 	///如果不存在address类型的参数,则跳过参数解析
 	if _, ok := interParam.eventNameToValueByAddress[constants.EVENT_TYPE_ADDRESS]; !ok {
 		return
@@ -513,13 +540,13 @@ func (e *EthClient) getInternalTxn(interParam *InternalTxnParam, internalTxn *do
 }
 
 // ParseTransReceiptByHash 根据交易hash解析交易中的log信息
-func (e *EthClient) ParseTransReceiptByHash(dbClient *sql.DB, hash string, contractAbiMap *map[common.Address]ContractMap) ([]domain.Logs, []domain.Erc20Txn, error) {
+func (e *EVMClient) ParseTransReceiptByHash(dbClient *sql.DB, hash string, contractAbiMap *map[common.Address]ContractMap) ([]domain.Logs, []domain.Erc20Txn, error) {
 	//根据交易哈希查询交易的receipt信息
 	receipt, err := e.TransactionReceipt(context.Background(), common.HexToHash(hash))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get receipt info for %v: %v", hash, err)
 	}
-	//若log为空，直接返回空
+	//若log为空 ，直接返回空
 	if len(receipt.Logs) == 0 {
 		return nil, nil, nil
 	}
@@ -534,7 +561,7 @@ func (e *EthClient) ParseTransReceiptByHash(dbClient *sql.DB, hash string, contr
 	}
 	return resultList, erc20TxList, nil
 }
-func (e *EthClient) getLogsInReceipt(dbClient *sql.DB, logs []*types.Log, contractAbiMap *map[common.Address]ContractMap) ([]domain.Logs, []domain.Erc20Txn, error) {
+func (e *EVMClient) getLogsInReceipt(dbClient *sql.DB, logs []*types.Log, contractAbiMap *map[common.Address]ContractMap) ([]domain.Logs, []domain.Erc20Txn, error) {
 	var resultList []domain.Logs
 	var erc20TxList []domain.Erc20Txn
 	//遍历receipt log
@@ -562,7 +589,7 @@ func (e *EthClient) getLogsInReceipt(dbClient *sql.DB, logs []*types.Log, contra
 	}
 	return resultList, erc20TxList, nil
 }
-func (e *EthClient) getContractMapByLogAddress(dbClient *sql.DB, logAddr common.Address, contractAbiMap *map[common.Address]ContractMap) (ContractMap, error) {
+func (e *EVMClient) getContractMapByLogAddress(dbClient *sql.DB, logAddr common.Address, contractAbiMap *map[common.Address]ContractMap) (ContractMap, error) {
 	if contractMap, ok := (*contractAbiMap)[logAddr]; ok {
 		return contractMap, nil
 	}
@@ -575,7 +602,7 @@ func (e *EthClient) getContractMapByLogAddress(dbClient *sql.DB, logAddr common.
 	(*contractAbiMap)[logAddr] = contractMap
 	return contractMap, nil
 }
-func (e *EthClient) checkIsErc20AndABI(dbClient *sql.DB, addr string) (ContractMap, error) {
+func (e *EVMClient) checkIsErc20AndABI(dbClient *sql.DB, addr string) (ContractMap, error) {
 	//判断该地址是否存在数据库中
 	isExits, err := db.ExistsToken(dbClient, addr, constants.DB_CHAIN_ETH)
 	if err != nil {
@@ -615,7 +642,7 @@ func (e *EthClient) checkIsErc20AndABI(dbClient *sql.DB, addr string) (ContractM
 }
 
 // 获取未验证的合约的log信息
-func (e *EthClient) parseNoVerifyLog(logInfo *types.Log, contractMap *ContractMap) (domain.Logs, domain.Erc20Txn, error) {
+func (e *EVMClient) parseNoVerifyLog(logInfo *types.Log, contractMap *ContractMap) (domain.Logs, domain.Erc20Txn, error) {
 	var topicsInfo []domain.TopicsValStruct
 	if logInfo.Topics[0].String() == constants.SIGN_TRANSFER {
 		return TransferLog(logInfo, contractMap)
@@ -641,7 +668,7 @@ func (e *EthClient) parseNoVerifyLog(logInfo *types.Log, contractMap *ContractMa
 
 // 获取已验证合约的log信息
 
-func (e *EthClient) parseVerifyLog(logInfo *types.Log, contractMap *ContractMap) (domain.Logs, domain.Erc20Txn, error) {
+func (e *EVMClient) parseVerifyLog(logInfo *types.Log, contractMap *ContractMap) (domain.Logs, domain.Erc20Txn, error) {
 	//若该地址是一个代理合约，先尝试使用代理合约abi进行解析
 	var abiContractMap string
 	if contractMap.hasProxy {
@@ -745,7 +772,7 @@ func (e *EthClient) parseVerifyLog(logInfo *types.Log, contractMap *ContractMap)
 }
 
 // GetNonceForTransaction 获得指定交易时，调用者的nonce值
-func (e *EthClient) GetNonceForTransaction(txHash string) (uint64, error) {
+func (e *EVMClient) GetNonceForTransaction(txHash string) (uint64, error) {
 	// 查询交易
 	tx, _, err := e.TransactionByHash(context.Background(), common.HexToHash(txHash))
 	if err != nil {

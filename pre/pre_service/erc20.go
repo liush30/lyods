@@ -9,7 +9,7 @@ import (
 	"lyods-adsTool/services/evm"
 )
 
-func processContractAndStore(dbClient *sql.DB, e *evm.EthClient, addr, key, ABIStr string) (bool, error) {
+func processContractAndStore(dbClient *sql.DB, e *evm.EVMClient, addr, key, ABIStr, chain string) (bool, error) {
 	proxyAddress := ""
 	var err error
 	switch key {
@@ -33,7 +33,7 @@ func processContractAndStore(dbClient *sql.DB, e *evm.EthClient, addr, key, ABIS
 			return false, fmt.Errorf("%s fail get proxy contract(%s) address abi: %s\n", addr, key, err.Error())
 		}
 
-		err = db.SaveContractABI(dbClient, constants.DB_CHAIN_ETH, addr, proxyABI, proxyAddress)
+		err = db.SaveContractABI(dbClient, chain, addr, proxyABI, proxyAddress)
 		if err != nil {
 			return false, fmt.Errorf("%s fail save contract abi: %s\n", addr, err.Error())
 		}
@@ -41,7 +41,7 @@ func processContractAndStore(dbClient *sql.DB, e *evm.EthClient, addr, key, ABIS
 	}
 	return false, nil
 }
-func processErc20(dbClient *sql.DB, addr, ABIStr string) (bool, error) {
+func processErc20(dbClient *sql.DB, addr, ABIStr, chain string) (bool, error) {
 	//验证合约abi是否符合erc20规范
 	isErc20, err := evm.IsERC20(ABIStr)
 	if err != nil {
@@ -49,7 +49,7 @@ func processErc20(dbClient *sql.DB, addr, ABIStr string) (bool, error) {
 	}
 	//如果是erc20合约，直接将abi存储到数据库
 	if isErc20 {
-		err = db.SaveContractABI(dbClient, constants.DB_CHAIN_ETH, addr, ABIStr, "")
+		err = db.SaveContractABI(dbClient, chain, addr, ABIStr, "")
 		if err != nil {
 			return false, fmt.Errorf("%s fail save contract abi:%v", addr, err)
 		}
@@ -58,7 +58,7 @@ func processErc20(dbClient *sql.DB, addr, ABIStr string) (bool, error) {
 }
 
 // GetABIToDbOnEth 查询数据库中的erc20信息，存储ethereum erc20 abi信息
-func GetABIToDbOnEth(dbClient *sql.DB, e *evm.EthClient, chain string) error {
+func GetABIToDbOnEth(dbClient *sql.DB, e *evm.EVMClient, chain string) error {
 	addressList, err := db.GetContractAddressAll(dbClient, chain)
 	if err != nil {
 		return fmt.Errorf("fail get contract address list by db: %v", err)
@@ -78,26 +78,26 @@ func GetABIToDbOnEth(dbClient *sql.DB, e *evm.EthClient, chain string) error {
 			}
 			continue
 		}
-		isErc20, err := processErc20(dbClient, addr, ABIStr)
+		isErc20, err := processErc20(dbClient, addr, ABIStr, chain)
 		if err != nil {
 			log.Println(err.Error())
 			continue
 		}
 		//如果不是erc20合约
 		if !isErc20 {
-			success, err := processContractAndStore(dbClient, e, addr, "OpenZeppelin's Unstructured", "")
+			success, err := processContractAndStore(dbClient, e, addr, "OpenZeppelin's Unstructured", "", chain)
 			if success {
 				continue
 			}
-			success, err = processContractAndStore(dbClient, e, addr, "eip1967", "")
+			success, err = processContractAndStore(dbClient, e, addr, "eip1967", "", chain)
 			if success {
 				continue
 			}
-			success, err = processContractAndStore(dbClient, e, addr, "eip1822", "")
+			success, err = processContractAndStore(dbClient, e, addr, "eip1822", "", chain)
 			if success {
 				continue
 			}
-			success, err = processContractAndStore(dbClient, e, addr, "eip897", ABIStr)
+			success, err = processContractAndStore(dbClient, e, addr, "eip897", ABIStr, chain)
 			if success {
 				continue
 			}

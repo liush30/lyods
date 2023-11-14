@@ -34,9 +34,10 @@ func (client *ChainBaseClient) CheckRequestStatus() {
 }
 
 // SendHTTPRequest 根据指定的url发送http请求，最多尝试三次
-func (client *ChainBaseClient) SendHTTPRequest(hash string) (*http.Response, error) {
+func (client *ChainBaseClient) SendHTTPRequest(hash, chain string) (*http.Response, error) {
 	client.CheckRequestStatus()
-	url := getTraceTransactionUrl()
+	url := getTraceTransactionUrl(chain)
+	log.Println("url:", url)
 	payload := map[string]interface{}{
 		"id":      constants.RPC_ID,
 		"jsonrpc": constants.RPC_VERSION,

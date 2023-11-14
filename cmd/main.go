@@ -38,22 +38,23 @@ func main() {
 		Httpclient:      utils.CreateClient(),
 	}
 	//client := utils.CreateClient()
-	e := evm.CreateEthClient()
-	ethClient := evm.EthClient{
+	e := evm.CreateEvmClient(constants.HTTP_ALCHEMY_ETH)
+	ethClient := evm.EVMClient{
 		Client:          e,
 		Key:             []string{constants.ETH_KEY1, constants.ETH_KEY2},
 		LastRequestTime: time.Now(),
 		HTTPClient:      utils.CreateClient(),
+		Chain:           constants.CHAIN_ETH,
 	}
 	cbClient := evm.ChainBaseClient{
 		RequestCount:    0,
 		LastRequestTime: time.Now(),
 	}
 	rClient := list.RClient{
-		EsClient: esClient,
-		EtClient: &ethClient,
-		CbClient: &cbClient,
-		BtClient: &bitClient,
+		EsClient:  esClient,
+		EthClient: &ethClient,
+		CbClient:  &cbClient,
+		BtcClient: &bitClient,
 	}
 	// 获取风险名单信息
 	//if err := list.GetAddrListByJSONOnBitcoin(constants.OPENSANCTIONS_URL, &bitClient, esClient); err != nil {

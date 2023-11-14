@@ -12,7 +12,7 @@ import (
 )
 
 // GetBalanceChange 获取指定地址，在交易(指定区块)前后原生代币金额的变化
-func (e *EthClient) GetBalanceChange(blockNumber *big.Int, address string) (*big.Int, error) {
+func (e *EVMClient) GetBalanceChange(blockNumber *big.Int, address string) (*big.Int, error) {
 	// 获取前一个区块号
 	beforeNumber := GetLastBlockNumber(blockNumber)
 
@@ -41,7 +41,7 @@ func (e *EthClient) GetBalanceChange(blockNumber *big.Int, address string) (*big
 }
 
 // GetERC20TokenBalance 查询指定账户在指定 ERC-20 代币合约中的余额
-func (e *EthClient) GetERC20TokenBalance(tokenContractAddress string, accountAddress string, blockNumber *big.Int) (*big.Int, error) {
+func (e *EVMClient) GetERC20TokenBalance(tokenContractAddress string, accountAddress string, blockNumber *big.Int) (*big.Int, error) {
 	// 创建 ERC-20 代币合约的 ABI
 	tokenABI, err := abi.JSON(strings.NewReader(constants.ABI_ERC20))
 	if err != nil {
@@ -63,18 +63,18 @@ func (e *EthClient) GetERC20TokenBalance(tokenContractAddress string, accountAdd
 	}
 	return new(big.Int).SetBytes(result), nil
 }
-func (e *EthClient) GetBalance(address string, blockNumber *big.Int) (*big.Int, error) {
+func (e *EVMClient) GetBalance(address string, blockNumber *big.Int) (*big.Int, error) {
 	// 查询地址在交易前的余额
 	balanceBefore, err := e.BalanceAt(context.Background(), common.HexToAddress(address), blockNumber)
 	if err != nil {
-		log.Println("Fail get before balance:", err.Error())
+		log.Println("Fail get  balance:", err.Error())
 		return nil, err
 	}
 	return balanceBefore, nil
 }
 
 // GetERC20TokenBalanceChange 查询指定账户在指定 ERC-20 代币合约中的余额变化
-func (e *EthClient) GetERC20TokenBalanceChange(tokenContractAddress string, accountAddress string, blockNumber *big.Int) (*big.Int, error) {
+func (e *EVMClient) GetERC20TokenBalanceChange(tokenContractAddress string, accountAddress string, blockNumber *big.Int) (*big.Int, error) {
 	// 获取前一个区块号
 	beforeNumber := GetLastBlockNumber(blockNumber)
 	//查询在blockNumber前账户的余额
@@ -97,7 +97,7 @@ func (e *EthClient) GetERC20TokenBalanceChange(tokenContractAddress string, acco
 }
 
 // GetLatestBlockNumber 获得最新区块号
-func (e *EthClient) GetLatestBlockNumber() (int64, error) {
+func (e *EVMClient) GetLatestBlockNumber() (int64, error) {
 	// 获取最新的区块头
 	header, err := e.HeaderByNumber(context.Background(), nil)
 	if err != nil {

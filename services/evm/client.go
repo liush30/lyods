@@ -17,8 +17,8 @@ import (
 	"time"
 )
 
-// EthClient ethereum查询风险账号相关操作
-type EthClient struct {
+// EVMClient ethereum查询风险账号相关操作
+type EVMClient struct {
 	*ethclient.Client
 	Key                []string
 	RequestCountSecond int
@@ -26,17 +26,27 @@ type EthClient struct {
 	LastRequestTime    time.Time
 	KeyIndex           int
 	HTTPClient         *http.Client
+	Chain              string
 }
 
-func CreateEthClient() *ethclient.Client {
-	client, err := ethclient.Dial(constants.URL_INFRUA)
+// CreateEvmClient constants.HTTP_ALCHEMY_ETH
+func CreateEvmClient(url string) *ethclient.Client {
+	client, err := ethclient.Dial(url)
 	if err != nil {
 		log.Fatal("failed to connect:", err)
 		return nil
 	}
 	return client
 }
-func (e *EthClient) CheckRequestStatus() bool {
+func CreateBnbClient() *ethclient.Client {
+	client, err := ethclient.Dial(constants.HTTP_OMNIATECH_BSC)
+	if err != nil {
+		log.Fatal("fail to connect:", err)
+		return nil
+	}
+	return client
+}
+func (e *EVMClient) CheckRequestStatus() bool {
 	// 如果当天总请求超过最大请求，切换key
 	if e.RequestCountDay >= constants.ETH_MAX_DAY {
 		//切换key
@@ -64,7 +74,7 @@ func (e *EthClient) CheckRequestStatus() bool {
 	return true
 }
 
-func (e *EthClient) SendHTTPRequest(url string) (*http.Response, error) {
+func (e *EVMClient) SendHTTPRequest(url string) (*http.Response, error) {
 	isNormalStatus := e.CheckRequestStatus()
 	if !isNormalStatus {
 		return nil, fmt.Errorf("the number of requests exceeds the limit")
@@ -95,12 +105,12 @@ func (e *EthClient) SendHTTPRequest(url string) (*http.Response, error) {
 }
 
 // GetKey 获得key值
-func (e *EthClient) GetKey() string {
+func (e *EVMClient) GetKey() string {
 	return e.Key[e.KeyIndex]
 }
 
 // ChangeKey 切换key
-func (e *EthClient) ChangeKey() bool {
+func (e *EVMClient) ChangeKey() bool {
 	index := e.KeyIndex + 1
 	//index超出范围
 	if index > len(e.Key)-1 {
@@ -111,12 +121,19 @@ func (e *EthClient) ChangeKey() bool {
 }
 
 // getContractAbiUrl 返回etherScan中查询指定合约地址的abiUrl
-func (e *EthClient) getContractAbiUrl(addr string) string {
-	return constants.ETH_ABI + e.GetKey() + "&address=" + addr
+func (e *EVMClient) getContractAbiUrl(addr string) string {
+	switch e.Chain {
+	case constants.CHAIN_ETH:
+		return constants.ETH_ABI + e.GetKey() + "&address=" + addr
+	case constants.CHAIN_BSC:
+		return constants.BSC_ENDPOINTS + constants.BSC_ABI + e.GetKey() + "&address=" + addr
+	default:
+		return ""
+	}
 }
 
 // GetContractAbiOnEth 获得合约地址的abi-GetRiskListOnContractAddr
-func (e *EthClient) GetContractAbiOnEth(addr string) (string, error) {
+func (e *EVMClient) GetContractAbiOnEth(addr string) (string, error) {
 	var err error
 	//发送http请求，查询到合约的abi
 	resp, err := e.SendHTTPRequest(e.getContractAbiUrl(addr))
@@ -141,7 +158,7 @@ func (e *EthClient) GetContractAbiOnEth(addr string) (string, error) {
 }
 
 // CallContractMethod 调用
-func (e *EthClient) CallContractMethod(contractAddress string, contractABIJSON string, methodName string, args ...interface{}) ([]interface{}, error) {
+func (e *EVMClient) CallContractMethod(contractAddress string, contractABIJSON string, methodName string, args ...interface{}) ([]interface{}, error) {
 	// 创建合约地址
 	contractAddressObj := common.HexToAddress(contractAddress)
 	var msg ethereum.CallMsg
@@ -176,7 +193,7 @@ func (e *EthClient) CallContractMethod(contractAddress string, contractABIJSON s
 	return resultInterface, nil
 }
 
-//func (e *EthClient) GetTokenSymbol(contractAddress common.Address) (string, error) {
+//func (e *EVMClient) GetTokenSymbol(contractAddress common.Address) (string, error) {
 //	symbolData, err := e.CallContract(context.Background(), ethereum.CallMsg{
 //		To:   &contractAddress,
 //		Data: common.Hex2Bytes("0x95d89b41"), // 使用ERC-20标准的symbol函数签名
@@ -187,7 +204,7 @@ func (e *EthClient) CallContractMethod(contractAddress string, contractABIJSON s
 //	return string(symbolData), nil
 //}
 //
-//func (e *EthClient) GetTokenDecimal(contractAddress common.Address) (int, error) {
+//func (e *EVMClient) GetTokenDecimal(contractAddress common.Address) (int, error) {
 //	decimalData, err := e.CallContract(context.Background(), ethereum.CallMsg{
 //		To:   &contractAddress,
 //		Data: common.Hex2Bytes("0x313ce567"), // 使用ERC-20标准的decimals函数签名
@@ -199,7 +216,7 @@ func (e *EthClient) CallContractMethod(contractAddress string, contractABIJSON s
 //}
 
 // CallContractMethod 调用
-//func (e *EthClient) CallContractMethod(msg ethereum.CallMsg) ([]interface{}, error) {
+//func (e *EVMClient) CallContractMethod(msg ethereum.CallMsg) ([]interface{}, error) {
 //	// 创建合约地址
 //	// 执行调用
 //	callResult, err := e.CallContract(context.Background(), msg, nil)

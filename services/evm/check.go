@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-func (e *EthClient) IsProxyContract(contractAddress, contractABIJSON string) (bool, string, error) {
+func (e *EVMClient) IsProxyContract(contractAddress, contractABIJSON string) (bool, string, error) {
 	//判断该地址是否是符合eip1822标准的代理合约
 	proxyAddress, err := e.IsZeppelinsUnStructStorage(contractAddress)
 	if err != nil {
@@ -44,7 +44,7 @@ func (e *EthClient) IsProxyContract(contractAddress, contractABIJSON string) (bo
 	}
 	return false, "", nil
 }
-func (e *EthClient) IsEIP897(contractAddress, contractABIJSON string) (string, error) {
+func (e *EVMClient) IsEIP897(contractAddress, contractABIJSON string) (string, error) {
 	//验证合约abi中是否包含"name": "implementation"
 	if !strings.Contains(contractABIJSON, `"name": "implementation"`) || !strings.Contains(contractABIJSON, `"name":"implementation"`) {
 		return "", nil
@@ -82,7 +82,7 @@ func (e *EthClient) IsEIP897(contractAddress, contractABIJSON string) (string, e
 }
 
 // IsEIP1822 判断合约是否是eip1822标准代理合约
-func (e *EthClient) IsEIP1822(contractAddress string) (string, error) {
+func (e *EVMClient) IsEIP1822(contractAddress string) (string, error) {
 	implAddress, err := getStorageValue(e, contractAddress, "PROXIABLE")
 	if err != nil {
 		return "", err
@@ -91,7 +91,7 @@ func (e *EthClient) IsEIP1822(contractAddress string) (string, error) {
 }
 
 // IsEIP1967 判断合约是否是eip1967合约
-func (e *EthClient) IsEIP1967(contractAddress string) (string, error) {
+func (e *EVMClient) IsEIP1967(contractAddress string) (string, error) {
 	proxyAddress, err := e.GetEIP1967ImplAddress(contractAddress)
 	if err != nil {
 		return "", fmt.Errorf("failed to get EIP1967 proxy implementation address: %v", err)
@@ -112,7 +112,7 @@ func (e *EthClient) IsEIP1967(contractAddress string) (string, error) {
 	return "", nil
 }
 
-func (e *EthClient) GetEIP1967ImplAddress(contractAddress string) (string, error) {
+func (e *EVMClient) GetEIP1967ImplAddress(contractAddress string) (string, error) {
 	contractAddressObj := common.HexToAddress(contractAddress)
 	keccakHash := crypto.Keccak256([]byte("eip1967.proxy.implementation"))
 	bigIntValue := new(big.Int).SetBytes(keccakHash)
@@ -130,7 +130,7 @@ func (e *EthClient) GetEIP1967ImplAddress(contractAddress string) (string, error
 	return common.HexToAddress(common.BytesToHash(proxyAddress).String()).String(), nil
 }
 
-func (e *EthClient) GetEIP1967BeaconAddress(contractAddress string) (string, error) {
+func (e *EVMClient) GetEIP1967BeaconAddress(contractAddress string) (string, error) {
 	contractAddressObj := common.HexToAddress(contractAddress)
 	keccakHash := crypto.Keccak256([]byte("eip1967.proxy.beacon"))
 	bigIntValue := new(big.Int).SetBytes(keccakHash)
@@ -213,14 +213,14 @@ func contractImplInput(interfaceABIJSON, contractABIJSON string) (bool, error) {
 }
 
 // IsZeppelinsUnStructStorage 判断合约是否符合openzeppelin 非结构化存储代理模式
-func (e *EthClient) IsZeppelinsUnStructStorage(contractAddress string) (string, error) {
+func (e *EVMClient) IsZeppelinsUnStructStorage(contractAddress string) (string, error) {
 	implAddress, err := getStorageValue(e, contractAddress, "org.zeppelinos.proxy.implementation")
 	if err != nil {
 		return "", err
 	}
 	return implAddress, nil
 }
-func getStorageValue(ethClient *EthClient, contractAddress string, key string) (string, error) {
+func getStorageValue(ethClient *EVMClient, contractAddress string, key string) (string, error) {
 	contractAddressObj := common.HexToAddress(contractAddress)
 	keccakHash := crypto.Keccak256([]byte(key))
 	storageSlot := common.BytesToHash(keccakHash)

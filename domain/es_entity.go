@@ -80,6 +80,7 @@ type EsTrans struct {
 	OutputValue       float64            `json:"outputValue"`       //交易输出金额
 	RiskLevel         int64              `json:"riskLevel"`         //风险等级
 	Address           string             `json:"address"`           //***交易所属地址
+	Balance           float64            `json:"balance"`           //交易后账户的 余额
 	Size              int64              `json:"size"`              //交易字节数
 	Weight            int64              `json:"weight"`            //权重
 	GasUsed           string             `json:"gasUsed"`           //交易费用||gas使用量

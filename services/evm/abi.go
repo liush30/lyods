@@ -5,7 +5,7 @@ import (
 )
 
 // AddABIRecords 增加表中还未存储abi的合约地址
-func (e *EthClient) AddABIRecords(db *sql.DB) error {
+func (e *EVMClient) AddABIRecords(db *sql.DB) error {
 	//var err error
 	//// 检查TOKEN_NAME是否不为空，并获取TWAR_KEY、PROXY_ADDR和TW_ADDR信息
 	//rows, err := db.Query("SELECT TWAR_KEY,PROXY_ADDR, TW_ADDR FROM T_WHITELIST_ADDR WHERE TOKEN_NAME IS NOT NULL && ABI IS NULL")
