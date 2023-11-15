@@ -1,9 +1,5 @@
 package domain
 
-import (
-	"time"
-)
-
 // DateOfBirth es存储结构-实体信息 risk-domain
 type DateOfBirth struct {
 	DateOfBirth string `json:"dateOfBirth"`
@@ -52,6 +48,7 @@ type Entity struct {
 	EntityId         string             `json:"entityId"`         //实体id
 	IsIndividual     bool               `json:"isIndividual"`     //是否为个体
 	RiskLevel        int64              `json:"riskLevel"`        //风险等级
+	LevelTime        string             `json:"levelTime"`        //最新风险层级标记时间
 	Name             string             `json:"name"`             //名字
 	AkaList          []string           `json:"akaList"`          //别名列表
 	AddressList      []AddressList      `json:"addressList"`      //地址列表
@@ -178,6 +175,7 @@ type WalletAddr struct {
 	EntityId       string             `json:"entityId"`       //entityID
 	Balance        float64            `json:"balance"`        //地址余额
 	WaRiskLevel    uint               `json:"waRiskLevel"`    //最高风险层级
+	LevelTime      string             `json:"levelTime"`      //最新风险层级标记时间
 	WaChain        string             `json:"waChain"`        //所在链
 	DsAddr         []AdsDataSource    `json:"adsDataSource"`  //来源地址
 	LevelNumber    []Level            `json:"levelNumber"`    //被标记层级信息
@@ -201,7 +199,7 @@ type Level struct {
 	Number int16 `json:"number"` //被标记次数
 }
 type RiskChangeRecord struct {
-	DateOfChange time.Time `json:"dateOfChange"` //变更日期
-	RiskLevel    uint      `json:"riskLevel"`    //变更风险等级
-	Description  string    `json:"description"`  //变更描述
+	DateOfChange string `json:"dateOfChange"` //变更日期
+	RiskLevel    uint   `json:"riskLevel"`    //变更风险等级
+	Description  string `json:"description"`  //变更描述
 }

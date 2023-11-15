@@ -45,7 +45,7 @@ func (b *BitClient) GetTxListByBlockChain(c *es.ElasticClient, addr string) ([]d
 		trans := processTransactionByBlockChain(value, addr)
 		transList = append(transList, trans)
 		//将交易记录存储到es中
-		err = c.Insert(constants.ES_TRANSACTION, strings.ToLower(trans.Hash), trans)
+		err = c.Insert(constants.ES_TRANSACTION, GetTransactionId(trans.Hash), trans)
 		if err != nil {
 			log.Println("Insert Transaction Error:", err.Error())
 			return
@@ -79,9 +79,70 @@ func (b *BitClient) GetTxListByBlockHash(hash string) error {
 }
 
 // 扫描区块信息
-func scannerBlock() {
-
-}
+//
+//	func scannerBlock(value []byte, es *es.ElasticClient) error {
+//		var isExist bool
+//		//获取交易out中涉及的地址信息，若地址是存于风险名单的地址，则将风险交易存于地址中
+//		_, err := jsonparser.ArrayEach(value, func(outsValue []byte, dataType jsonparser.ValueType, offset int, err error) {
+//			if isExist {
+//				return
+//			}
+//			addrStr, err := jsonparser.GetString(outsValue, "addr")
+//			if err != nil {
+//				log.Println("scannerBlock:fail get addr error:", err.Error())
+//				return
+//			}
+//			isExist, err = es.IsExistById(constants.ES_ADDRESS, GetAddressId(addrStr))
+//			if err != nil {
+//				log.Println("scannerBlock:fail search address to es error:", err.Error())
+//				return
+//			}
+//			//若该地址存在与风险名单中，将该交易存入风险名单中
+//			if isExist {
+//				log.Println("process transaction:", addrStr)
+//				//处理交易数据
+//				trans := processTransactionByBlockChain(value, addrStr)
+//				//将处理好的交易数据存入到es中
+//				err = es.Insert(constants.ES_TRANSACTION, GetTransactionId(trans.Hash), trans)
+//				if err != nil {
+//					log.Println("scannerBlock:insert transaction to es error:", err.Error())
+//					return
+//				}
+//			}
+//		}, "out")
+//		if isExist {
+//			return nil
+//		}
+//		if err != nil {
+//			return fmt.Errorf("scannerBlock:%v", err.Error())
+//		}
+//		//获取交易中input中涉及的地址信息，若地址是存于风险名单的地址，则将风险交易存于地址中
+//		_, err = jsonparser.ArrayEach(value, func(insValue []byte, dataType jsonparser.ValueType, offset int, err error) {
+//			addrStr, err := jsonparser.GetString(insValue, "addr")
+//			if err != nil {
+//				log.Println("scannerBlock:fail get addr error:", err.Error())
+//				return
+//			}
+//			isExist, err := es.IsExistById(constants.ES_ADDRESS, GetAddressId(addrStr))
+//			if err != nil {
+//				log.Println("scannerBlock:fail search address to es error:", err.Error())
+//				return
+//			}
+//			//若该地址存在与风险名单中，将该交易存入风险名单中
+//			if isExist {
+//				log.Println("process transaction:", addrStr)
+//				//处理交易数据
+//				trans := processTransactionByBlockChain(value, addrStr)
+//				//将处理好的交易数据存入到es中
+//				err = es.Insert(constants.ES_TRANSACTION, GetTransactionId(trans.Hash), trans)
+//				if err != nil {
+//					log.Println("scannerBlock:insert transaction to es error:", err.Error())
+//					return
+//				}
+//			}
+//
+//		}, "inputs")
+//	}
 func GetTxListByBtcCom(bitClient *BitClient, c *es.ElasticClient, addr, page string) ([]domain.EsTrans, int64, error) {
 	log.Println("GetTxListByBtcCom:", addr)
 	var transList []domain.EsTrans
@@ -126,7 +187,7 @@ func GetTxListByBtcCom(bitClient *BitClient, c *es.ElasticClient, addr, page str
 		trans := processTransByBtcCom(value, addr)
 		transList = append(transList, trans)
 		//将交易记录存储到es中
-		err = c.Insert(constants.ES_TRANSACTION, strings.ToLower(trans.Hash), trans)
+		err = c.Insert(constants.ES_TRANSACTION, GetTransactionId(trans.Hash), trans)
 		if err != nil {
 			log.Println("Insert Transaction Error:", err.Error())
 			return
@@ -400,6 +461,8 @@ func processTransactionByBlockChain(value []byte, addr string) domain.EsTrans {
 		Inputs:      inputTransList,
 		Out:         outTransList,
 		Balance:     balanceFloat,
+		Value:       inputValueTotal,
+		ValueText:   big.NewFloat(inputValueTotal).String(),
 	}
 }
 

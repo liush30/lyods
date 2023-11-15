@@ -367,7 +367,7 @@ func (r *RClient) GetAddrListOnXmlByElement(path string) error {
 							chain = constants.CHAIN_BTC
 						}
 						//根据address，查询该地址是否已经存在
-						isExist, err := r.EsClient.IsExistById(constants.ES_ADDRESS, idNumberValue+"_"+chain)
+						isExist, err := r.EsClient.IsExistById(constants.ES_ADDRESS, strings.ToUpper(idNumberValue)+"_"+chain)
 						if err != nil {
 							log.Printf("IsExistById Error :%s\n，id=%s", err.Error(), idNumberValue)
 							continue
@@ -396,7 +396,7 @@ func (r *RClient) GetAddrListOnXmlByElement(path string) error {
 								IsNeedTrace: true,
 								//Balance:     addrBalance,
 							}
-							walletAddr.AddressId = idNumberValue + "_" + chain
+							walletAddr.AddressId = strings.ToUpper(idNumberValue) + "_" + chain
 							if chain == constants.CHAIN_BTC {
 								//查询该地址的交易信息
 								_, addrBalance, err := r.BtcClient.GetTxListByBlockChain(r.EsClient, idNumberValue)
@@ -440,6 +440,15 @@ func (r *RClient) GetAddrListOnXmlByElement(path string) error {
 								}
 								walletAddr.Balance = balanceFloat
 							}
+							walletAddr.WaRiskLevel = constants.INIT_LEVEL
+							walletAddr.LevelTime = time.Now().Format(time.DateTime)
+							walletAddr.RiskChgHistory = []domain.RiskChangeRecord{
+								{
+									RiskLevel:    constants.INIT_LEVEL,
+									Description:  "OFAC SDN LIST INIT",
+									DateOfChange: time.Now().Format(time.DateTime),
+								},
+							}
 							err = r.EsClient.Insert(constants.ES_ADDRESS, strings.ToUpper(walletAddr.AddressId), walletAddr)
 							if err != nil {
 								return fmt.Errorf("fail insert %s to addr_list:%v", idNumberValue+"_"+walletAddr.WaChain, err)
@@ -459,6 +468,16 @@ func (r *RClient) GetAddrListOnXmlByElement(path string) error {
 			entityInfo.PhoneNumber = phoneList
 			entityInfo.IDList = idInfoList
 			entityInfo.OtherInfo = otherList
+			entityInfo.RiskLevel = constants.INIT_LEVEL
+			entityInfo.LevelTime = time.Now().Format(time.DateTime)
+			//存储风险 变更记录
+			entityInfo.RiskChgHistory = []domain.RiskChangeRecord{
+				{
+					DateOfChange: time.Now().Format(time.DateTime),
+					RiskLevel:    constants.INIT_LEVEL,
+					Description:  "OFAC SDN LIST INIT",
+				},
+			}
 			//存入es中
 			err = r.EsClient.Insert(constants.ES_ENTITY, entityId, &entityInfo)
 			if err != nil {

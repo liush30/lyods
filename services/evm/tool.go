@@ -13,6 +13,7 @@ import (
 	"lyods-adsTool/pkg/constants"
 	"math/big"
 	"strconv"
+	"strings"
 )
 
 // InternalTxnParam InternalTxn解析参数
@@ -214,4 +215,8 @@ func mapToTopicsValStruct(topics map[string]string) []domain.TopicsValStruct {
 // GetLastBlockNumber 获取上一个区块号
 func GetLastBlockNumber(blockNumber *big.Int) *big.Int {
 	return new(big.Int).Sub(blockNumber, big.NewInt(1))
+}
+
+func GetTransactionId(hash string) string {
+	return strings.ToLower(hash) + "_" + constants.CHAIN_ETH
 }

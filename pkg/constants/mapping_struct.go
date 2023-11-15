@@ -22,6 +22,10 @@ const ADDR_MAPPING = `
             "waRiskLevel":{
                 "type":"short"
             },
+			"levelTime":{
+				"type":"date",
+                "format":"yyyy-MM-dd HH:mm:ss"
+			},
             "waChain":{
                 "type":"keyword"
             },
@@ -116,14 +120,13 @@ const ADDR_MAPPING = `
                                 "type":"text"
                             }
                         }
-                    }
-,
+                    },
             "riskChgHistory":{
                 "type":"nested",
                 "properties":{
                     "dateOfChange":{
                         "type":"date",
-                        "format":"yyyy-MM-dd"
+                        "format":"yyyy-MM-dd HH:mm:ss"
                     },
                     "riskLevel":{
                         "type":"short"
@@ -164,6 +167,10 @@ const TRANS_MAPPING = `
             "riskLevel":{
                 "type":"short"
             },
+            "levelTime":{
+				"type":"date",
+                "format":"yyyy-MM-dd HH:mm:ss"
+			},
             "address":{
                 "type":"keyword"
             },
@@ -403,7 +410,7 @@ const TRANS_MAPPING = `
                 "properties":{
                     "dateOfChange":{
                          "type": "date",
-                      "format": "yyyy-MM-dd"
+                      "format": "yyyy-MM-dd HH:mm:ss"
                     },
                     "riskLevel":{
                         "type":"short"

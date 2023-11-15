@@ -138,7 +138,7 @@ func (e *EVMClient) GetTxList(c *es.ElasticClient, cbClient *ChainBaseClient, ad
 			lastBlockNumber = trans.BlockHeight
 		}
 		log.Println("hashCount:", hashCount, "hash:", trans.Hash)
-		err = c.Insert(constants.ES_TRANSACTION, strings.ToLower(trans.Hash), trans)
+		err = c.Insert(constants.ES_TRANSACTION, GetTransactionId(trans.Hash), trans)
 		if err != nil {
 			log.Println("Insert Transaction Error:", err.Error())
 			return

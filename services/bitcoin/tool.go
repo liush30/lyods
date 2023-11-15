@@ -7,6 +7,7 @@ import (
 	"lyods-adsTool/pkg/constants"
 	"math/big"
 	"net/http"
+	"strings"
 )
 
 // GetLatestBlockNumber 获取最新区块高度
@@ -39,4 +40,11 @@ func ConvertSatoshiToBTC(satoshi *big.Int) (float64, string) {
 	btcValue, _ := btcFloat.Float64() // 转换为 float64
 
 	return btcValue, btcString
+}
+
+func GetAddressId(addr string) string {
+	return strings.ToUpper(addr) + "_" + constants.CHAIN_BTC
+}
+func GetTransactionId(hash string) string {
+	return strings.ToLower(hash) + "_" + constants.CHAIN_BTC
 }
