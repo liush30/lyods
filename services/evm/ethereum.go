@@ -64,7 +64,7 @@ func (e *EVMClient) GetTxList(c *es.ElasticClient, cbClient *ChainBaseClient, ad
 		return nil, "", fmt.Errorf("GetTxListOnEth io read error: %v", err)
 	}
 
-	taskList := make([]domain.EsTrans, 0)
+	transList := make([]domain.EsTrans, 0)
 	contractAbiMap := make(map[common.Address]ContractMap)
 	hashCount := 0        //记录获取的交易总量
 	lastBlockNumber := "" //最后一个交易的区块数
@@ -75,28 +75,38 @@ func (e *EVMClient) GetTxList(c *es.ElasticClient, cbClient *ChainBaseClient, ad
 		}
 
 		// 处理交易信息
-		trans, err := processTrans(value, addr)
+		trans, err := processTrans(c, value, addr)
 		if err != nil {
 			log.Printf("Error processing transaction: %v", err)
 			return
 		}
+		//若trans不为空，将交易记录存储于transList
+		if !domain.IsEsTransEmpty(trans) {
+			transList = append(transList, trans)
+		}
 		var toAddressIsContract bool
 		if !isContract {
-			//判断to是否为合约地址
-			toAddressIsContract, err = e.IsContractAddress(trans.Out[0].Addr)
-			if err != nil {
-				log.Printf("Error getting contract address: %v", err)
-				return
+			//若当前地址不属于交易中的to地址，查询to地址是否为合约地址
+			toAddressStr := trans.Out[0].Addr
+			if toAddressStr != addr {
+				//判断to是否为合约地址
+				toAddressIsContract, err = e.IsContractAddress(toAddressStr)
+				if err != nil {
+					log.Printf("Error getting contract address: %v", err)
+					return
+				}
 			}
 		}
 		var traceTran []domain.InternalTxn
-		//查询合约地址且交易未出错的交易或to地址为合约地址的交易中的内部交易信息
-		if isContract && trans.IsError == "0" || toAddressIsContract && trans.IsError == "0" {
-			// 查询交易内部的trace tx信息
-			traceTran, err = e.GetTraceTransaction(cbClient, trans.Hash)
-			if err != nil {
-				log.Printf("Error getting trace transaction: %v", err)
-				return
+		if e.Chain != constants.CHAIN_ARB {
+			//查询合约地址且交易未出错的交易或to地址为合约地址的交易中的内部交易信息
+			if isContract && trans.IsError == "0" || toAddressIsContract && trans.IsError == "0" {
+				// 查询交易内部的trace tx信息
+				traceTran, err = e.GetTraceTransaction(cbClient, trans.Hash)
+				if err != nil {
+					log.Printf("Error getting trace transaction: %v", err)
+					return
+				}
 			}
 		}
 		if len(traceTran) == 1 {
@@ -131,7 +141,7 @@ func (e *EVMClient) GetTxList(c *es.ElasticClient, cbClient *ChainBaseClient, ad
 		}
 		trans.Balance = balanceFloat
 		// 查询交易内部的ERC20转账交易信息
-		taskList = append(taskList, trans)
+		transList = append(transList, trans)
 		hashCount++
 		//获得区块号
 		if hashCount == constants.ETH_MAX_TRANS {
@@ -147,19 +157,37 @@ func (e *EVMClient) GetTxList(c *es.ElasticClient, cbClient *ChainBaseClient, ad
 	}, "result")
 
 	if err != nil {
-		log.Println("ArrayEach result:", err.Error())
+		log.Println("Transaction ArrayEach result:", err.Error())
 		return nil, "", err
 	}
 
-	return taskList, lastBlockNumber, nil
+	return transList, lastBlockNumber, nil
 }
 
 // 处理交易基本信息，将信息存储于 EsTrans 中并返回
-func processTrans(value []byte, addr string) (domain.EsTrans, error) {
+func processTrans(esClient *es.ElasticClient, value []byte, addr string) (domain.EsTrans, error) {
 	if len(value) == 0 {
 		return domain.EsTrans{}, errors.New("VALUE_IS_NIL")
 	}
-
+	//获得交易的hash
+	transHash, err := jsonparser.GetString(value, constants.HASH_KEY)
+	if err != nil {
+		return domain.EsTrans{}, fmt.Errorf("failed getting transaction hash: %v", err)
+	}
+	transId := GetTransactionId(transHash)
+	addrId := GetAddressId(addr)
+	isExist, err := esClient.IsExistById(constants.ES_TRANSACTION, transId)
+	if err != nil {
+		return domain.EsTrans{}, fmt.Errorf("fail get isExist by es:%v", err)
+	}
+	//若该交易已经存在，将address存入到address list中,并返回交易信息
+	if isExist {
+		transInfo, err := esClient.AddAddressData(transId, addrId, addr)
+		if err != nil {
+			return domain.EsTrans{}, fmt.Errorf("fail add address data:%v", err)
+		}
+		return transInfo, nil
+	}
 	var trans domain.EsTrans
 	trans.Out = make([]domain.OutTrans, 1)
 	trans.Inputs = make([]domain.InputsTrans, 1)
@@ -170,7 +198,7 @@ func processTrans(value []byte, addr string) (domain.EsTrans, error) {
 	}
 	fields := []field{
 		{constants.TO_KEY, &trans.Out[0].Addr},
-		{constants.HASH_KEY, &trans.Hash},
+		//{constants.HASH_KEY, &trans.Hash},
 		{constants.GAS_USED_KEY, &trans.GasUsed},
 		{constants.IS_ERROR_KEY, &trans.IsError},
 		{constants.CONTRACT_ADDR_KEY, &trans.ContractAddress},
@@ -223,7 +251,9 @@ func processTrans(value []byte, addr string) (domain.EsTrans, error) {
 		}
 	}
 	// 设置额外字段
-	trans.Address = addr
+	trans.AddressList = []string{addr}
+	trans.AddressListId = []string{addrId}
+	trans.Hash = transHash
 	timeStamp, err := jsonparser.GetString(value, constants.TIME_STAMP_KEY)
 	if err != nil {
 		return trans, fmt.Errorf("fail to get '%s': %v", constants.TIME_STAMP_KEY, err)
@@ -266,10 +296,9 @@ func (e *EVMClient) GetTraceTransaction(cbClient *ChainBaseClient, hash string) 
 			return
 		}
 		iTxList = append(iTxList, iTx)
-
 	}, "result")
 	if arrayErr != nil {
-		log.Println("ArrayEach result:", arrayErr.Error())
+		log.Println("TraceTransaction ArrayEach result:", arrayErr.Error())
 		return nil, arrayErr
 	}
 	return iTxList, nil
@@ -408,15 +437,12 @@ func (e *EVMClient) getNormalUrl(addr, startBlock, key string) string {
 		return constants.ETH_ADDR_ETHSCAN + startBlock + "&address=" + addr + "&apikey=" + key
 	case constants.CHAIN_BSC:
 		return constants.BSC_ENDPOINTS + constants.BSC_TX_ADDR + startBlock + "&address=" + addr + "&apikey=" + key
+	case constants.CHAIN_ARB:
+		return constants.ARB_ENDPOINTS + constants.ARB_TX_ADDR + startBlock + "&address=" + addr + "&apikey=" + key
 	default:
 		return ""
 	}
 
-}
-
-// arbitrum根据地址获得内部交易url
-func getInterUrlArb(addr string) string {
-	return constants.API_ARB_INTRANS + addr
 }
 
 // getInternalTxn 根据事件信息进行解析，存储到InternalTxn结构体中

@@ -22,9 +22,13 @@ const (
 	// URL_INFRUA = "https://fabled-radial-isle.discover.quiknode.pro/406bcd9a632fae87343b9baf3ef47d664161810b/" //quick Node
 	HTTP_ALCHEMY_ETH    = "https://eth-mainnet.g.alchemy.com/v2/THcL8Tk-e_GH4Yjagko7-zOMqRGnk2SL"
 	HTTP_OMNIATECH_BSC  = "https://endpoints.omniatech.io/v1/bsc/mainnet/95dfd04a356748118abb5cd0f7958a99" //50/s  10w/day
-	HTTP_CHAINBASE_ETH  = "https://ethereum-mainnet.s.chainbase.online/v1/"                                //10s /20个
-	HTTP_CHAINBASE_BSC  = "https://bsc-mainnet.s.chainbase.online/v1/"
 	HTTP_CHAINNODES_BSC = "https://mainnet.chainnodes.org/dde52609-2f9a-4ea5-9ab2-555760c33468"
+	HTTP_INFURA_ARB     = "https://arbitrum-mainnet.infura.io/v3/2a2478ff1ff042d9b9dea5f36b4164de"
+)
+const (
+	HTTP_CHAINBASE_ETH = "https://ethereum-mainnet.s.chainbase.online/v1/" //10s /20个
+	HTTP_CHAINBASE_BSC = "https://bsc-mainnet.s.chainbase.online/v1/"
+	HTTP_CHAINBASE_ARB = "https://arbitrum-mainnet.s.chainbase.online/v1/"
 )
 
 // bitcoin
@@ -51,6 +55,7 @@ const (
 	ETH_MAX_TRANS    = 10000
 	ETH_ABI          = "https://api.etherscan.io/api?module=contract&action=getabi&apikey="
 )
+
 const (
 	BSC_KEY1       = "VM4NA84WJVKVMMMITVY3VH8RWZB7217C8H"
 	BSC_KEY2       = "3RJKPK988FKS13T4AE7RNZAE29AUG8WTCY"
@@ -59,4 +64,14 @@ const (
 	BSC_ENDPOINTS  = "https://api.bscscan.com/api"
 	BSC_ABI        = "?module=contract&action=getabi&apikey="
 	BSC_TX_ADDR    = "?module=account&action=txlist&page=1&offset=50&startblock="
+)
+
+const (
+	ARB_KEY1       = "D8HNF3S19ECJD3T3M6IFMY57159I866A1J"
+	ARB_KEY2       = "4WCBBSTX8ZC3QB6TR5XJC8V62MNBK9PF5S"
+	ARB_MAX_SECOND = 5
+	ARB_MAX_DAY    = 100000
+	ARB_ENDPOINTS  = "https://api.arbiscan.io/api"
+	ARB_ABI        = "?module=contract&action=getabi&apikey="
+	ARB_TX_ADDR    = "?module=account&action=txlist&page=1&offset=50&startblock="
 )

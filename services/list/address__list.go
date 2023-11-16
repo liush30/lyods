@@ -241,8 +241,8 @@ type RClient struct {
 }
 
 // GetAddrListOnXmlByElement 根据url获取xml格式的地址名单-根据访问元素，查询所在链以及地址
-// 目前链[XBT(BTC), ETH,
-// BSC(bnb),ARB,
+// 目前链[XBT(BTC), ETH,BSC(bnb),
+// ,ARB,
 // LTC
 // XMR
 // ETC

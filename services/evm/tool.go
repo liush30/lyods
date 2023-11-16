@@ -3,6 +3,7 @@ package evm
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -40,6 +41,9 @@ func getTraceTransactionUrl(chain string) string {
 		return constants.HTTP_CHAINBASE_ETH + config.CHAINBASE_KEY
 	case constants.CHAIN_BSC:
 		return constants.HTTP_CHAINBASE_BSC + config.CHAINBASE_KEY
+	case constants.CHAIN_ARB:
+		return constants.HTTP_CHAINBASE_ARB + config.CHAINBASE_KEY
+
 	default:
 		return ""
 	}
@@ -148,6 +152,12 @@ func interfaceToData(dataItem interface{}, dataType string) (string, bool) {
 			dataResult = dataResult[:len(dataResult)-1] // 去除最后一个逗号
 			dataOk = true
 		}
+	default:
+		itemByte, err := json.Marshal(dataItem)
+		if err != nil {
+			return "", false
+		}
+		dataResult, dataOk = string(itemByte), true
 	}
 
 	return dataResult, dataOk
@@ -219,4 +229,7 @@ func GetLastBlockNumber(blockNumber *big.Int) *big.Int {
 
 func GetTransactionId(hash string) string {
 	return strings.ToLower(hash) + "_" + constants.CHAIN_ETH
+}
+func GetAddressId(addr string) string {
+	return strings.ToUpper(addr) + "_" + constants.CHAIN_ETH
 }

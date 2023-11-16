@@ -3,7 +3,11 @@ package main
 import (
 	_ "github.com/go-sql-driver/mysql"
 	"log"
-	"strings"
+	"lyods-adsTool/es"
+	"lyods-adsTool/pkg/constants"
+	"lyods-adsTool/pkg/utils"
+	"lyods-adsTool/services/evm"
+	"time"
 )
 
 //import (
@@ -18,11 +22,27 @@ import (
 //)
 
 func main() {
+	esClient, err := es.CreateEsClient()
+	if err != nil {
+		log.Fatalf("Failed to create Elasticsearch client: %v\n", err)
+		return
+	}
+	e := evm.CreateEvmClient(constants.HTTP_INFURA_ARB)
+	arbClient := evm.EVMClient{
+		Client:          e,
+		Key:             []string{constants.ARB_KEY1, constants.ARB_KEY2},
+		LastRequestTime: time.Now(),
+		HTTPClient:      utils.CreateClient(),
+		Chain:           constants.CHAIN_ARB,
+	}
+	cbClient := evm.ChainBaseClient{
+		RequestCount:    0,
+		LastRequestTime: time.Now(),
+	}
 
-	log.Println(strings.ToUpper("B6f6991d03df0e2e04dafffcd6bc418aac66049e2cd74b80f14ac86db1e3f0da"))
-	//e, err := bscClient.TransactionReceipt(context.Background(), common.HexToHash("0xbb270aef05636363ceaab06b2a2e4ee85ca611eb363080edc590448bc20bbed5"))
-	//if err != nil {
-	//	log.Println(err)
-	//}
-	//log.Println(e)
+	transList, _, err := arbClient.GetTxList(esClient, &cbClient, "0x7C2427FBf06370D4e0C6149794f756c91a1C6E11", "0")
+	if err != nil {
+		log.Println(err)
+	}
+	log.Println(len(transList))
 }

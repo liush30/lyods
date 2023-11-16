@@ -1,5 +1,7 @@
 package domain
 
+import "reflect"
+
 // DateOfBirth es存储结构-实体信息 risk-domain
 type DateOfBirth struct {
 	DateOfBirth string `json:"dateOfBirth"`
@@ -76,7 +78,8 @@ type EsTrans struct {
 	OutputCount       int64              `json:"outputCount"`       //交易输出数量
 	OutputValue       float64            `json:"outputValue"`       //交易输出金额
 	RiskLevel         int64              `json:"riskLevel"`         //风险等级
-	Address           string             `json:"address"`           //***交易所属地址
+	AddressList       []string           `json:"addressList"`       //***交易所属地址
+	AddressListId     []string           `json:"addressIdList"`     //交易所属风险地址id
 	Balance           float64            `json:"balance"`           //交易后账户的 余额
 	Size              int64              `json:"size"`              //交易字节数
 	Weight            int64              `json:"weight"`            //权重
@@ -202,4 +205,45 @@ type RiskChangeRecord struct {
 	DateOfChange string `json:"dateOfChange"` //变更日期
 	RiskLevel    uint   `json:"riskLevel"`    //变更风险等级
 	Description  string `json:"description"`  //变更描述
+}
+
+// IsEsTransEmpty 判断 EsTrans 结构体是否为空
+func IsEsTransEmpty(esTrans EsTrans) bool {
+	// 获取结构体的反射值
+	val := reflect.ValueOf(esTrans)
+
+	// 遍历结构体的字段
+	for i := 0; i < val.NumField(); i++ {
+		// 获取字段的值
+		fieldVal := val.Field(i)
+
+		// 判断字段的类型
+		switch fieldVal.Kind() {
+		case reflect.String:
+			// 如果是字符串类型，判断是否为空字符串
+			if fieldVal.String() != "" {
+				return false
+			}
+		case reflect.Slice, reflect.Array, reflect.Map:
+			// 如果是切片、数组或映射类型，判断是否为空
+			if !fieldVal.IsNil() && fieldVal.Len() > 0 {
+				return false
+			}
+		case reflect.Int, reflect.Int64, reflect.Float64:
+			// 如果是整数或浮点数类型，判断是否为零值
+			if fieldVal.Interface() != reflect.Zero(fieldVal.Type()).Interface() {
+				return false
+			}
+		case reflect.Bool:
+			// 如果是布尔类型，判断是否为 false
+			if fieldVal.Bool() {
+				return false
+			}
+		default:
+			// 暂时不处理其他类型
+		}
+	}
+
+	// 所有字段都为空，则结构体为空
+	return true
 }

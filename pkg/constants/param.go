@@ -24,6 +24,7 @@ const (
 	CHAIN_ETH = "ETH"
 	CHAIN_BTC = "BTC"
 	CHAIN_BSC = "BSC"
+	CHAIN_ARB = "ARB"
 )
 
 // 风险名单来源类型

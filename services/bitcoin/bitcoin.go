@@ -42,8 +42,15 @@ func (b *BitClient) GetTxListByBlockChain(c *es.ElasticClient, addr string) ([]d
 	//遍历该地址的每一条交易信息，并存储于transList中
 	_, err = jsonparser.ArrayEach(body, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 		//log.Println(string(value))
-		trans := processTransactionByBlockChain(value, addr)
-		transList = append(transList, trans)
+		trans, err := processTransactionByBlockChain(c, value, addr)
+		if err != nil {
+			log.Println("processTransactionByBlockChain Error:", err.Error())
+			return
+		}
+		//若trans不为空，将交易记录存储于transList
+		if !domain.IsEsTransEmpty(trans) {
+			transList = append(transList, trans)
+		}
 		//将交易记录存储到es中
 		err = c.Insert(constants.ES_TRANSACTION, GetTransactionId(trans.Hash), trans)
 		if err != nil {
@@ -272,8 +279,8 @@ func processTransByBtcCom(value []byte, addr string) domain.EsTrans {
 	inputValueFloat, inputValueString := ConvertSatoshiToBTC(big.NewInt(inputsValue))
 	outputValueFloat, _ := ConvertSatoshiToBTC(big.NewInt(outsValue))
 	return domain.EsTrans{
-		Hash:          transHash,
-		Address:       addr,
+		Hash: transHash,
+		//Address:       addr,
 		Size:          transSize,
 		Weight:        transWeight,
 		GasUsed:       string(transFee),
@@ -385,21 +392,38 @@ func processOutByBlockChain(outValue []byte) domain.OutTrans {
 		N:         outN,
 	}
 }
-func processTransactionByBlockChain(value []byte, addr string) domain.EsTrans {
+func processTransactionByBlockChain(esClient *es.ElasticClient, value []byte, addr string) (domain.EsTrans, error) {
+	//先获取交易的hash值，若改哈希已存在，直接存储addrlist即可
+	transHash, err := jsonparser.GetString(value, "hash")
+	if err != nil {
+		return domain.EsTrans{}, fmt.Errorf("fail get hash:%v", err)
+	}
+	transId := GetTransactionId(transHash)
+	addrId := GetAddressId(addr)
+	isExist, err := esClient.IsExistById(constants.ES_TRANSACTION, transId)
+	if err != nil {
+		return domain.EsTrans{}, fmt.Errorf("fail get isExist by es:%v", err)
+	}
+	//若该交易已经存在，将address存入到address list中,并返回交易信息
+	if isExist {
+		transInfo, err := esClient.AddAddressData(transId, addrId, addr)
+		if err != nil {
+			return domain.EsTrans{}, fmt.Errorf("fail add address data:%v", err)
+		}
+		return transInfo, nil
+	}
 	transBlockIndex, dateType, _, err := jsonparser.Get(value, "block_height")
 	if transBlockIndex == nil || dateType == jsonparser.NotExist {
-		return domain.EsTrans{}
+		log.Println(transHash, "is pending...")
+		return domain.EsTrans{}, nil
 	}
-	if err != nil {
-		log.Println("Fail get block_height:", err.Error())
-		return domain.EsTrans{}
+	if err != nil && err != jsonparser.KeyPathNotFoundError {
+		return domain.EsTrans{}, fmt.Errorf("fail get block_height:%v", err)
 	}
-	//log.Println("transBlockIndex:", string(transBlockIndex))
-	utils.IsError(err, "Fail get block_height")
+
 	var inputTransList []domain.InputsTrans //inputs信息
 	var outTransList []domain.OutTrans      //out信息
-	transHash, err := jsonparser.GetString(value, "hash")
-	utils.IsError(err, "Fail get hash")
+
 	transSize, err := jsonparser.GetInt(value, "size")
 	utils.IsError(err, "Fail get size")
 	transWeight, err := jsonparser.GetInt(value, "weight")
@@ -442,28 +466,31 @@ func processTransactionByBlockChain(value []byte, addr string) domain.EsTrans {
 		inputTransList = append(inputTransList, inTxn)
 		inputValueTotal += inTxn.Value
 	}, "inputs")
+	addrList := []string{addr}
+	addrIdList := []string{addrId}
 	return domain.EsTrans{
-		Hash:        transHash,
-		Chain:       constants.CHAIN_BTC,
-		InputCount:  transVinCount,
-		OutputCount: transVoutCount,
-		InputValue:  inputValueTotal,
-		OutputValue: outputValueTotal,
-		Address:     addr,
-		Size:        transSize,
-		Weight:      transWeight,
-		GasUsed:     string(transFee),
-		LockTime:    transLockTime,
-		TxIndex:     string(transTxIndex),
-		DoubleSpend: transDoubleSpend,
-		Time:        utils.UnixToTime(transTime),
-		BlockHeight: string(transBlockIndex),
-		Inputs:      inputTransList,
-		Out:         outTransList,
-		Balance:     balanceFloat,
-		Value:       inputValueTotal,
-		ValueText:   big.NewFloat(inputValueTotal).String(),
-	}
+		Hash:          transHash,
+		Chain:         constants.CHAIN_BTC,
+		InputCount:    transVinCount,
+		OutputCount:   transVoutCount,
+		InputValue:    inputValueTotal,
+		OutputValue:   outputValueTotal,
+		AddressList:   addrList,
+		AddressListId: addrIdList,
+		Size:          transSize,
+		Weight:        transWeight,
+		GasUsed:       string(transFee),
+		LockTime:      transLockTime,
+		TxIndex:       string(transTxIndex),
+		DoubleSpend:   transDoubleSpend,
+		Time:          utils.UnixToTime(transTime),
+		BlockHeight:   string(transBlockIndex),
+		Inputs:        inputTransList,
+		Out:           outTransList,
+		Balance:       balanceFloat,
+		Value:         inputValueTotal,
+		ValueText:     big.NewFloat(inputValueTotal).String(),
+	}, nil
 }
 
 func processOutByBtcCom(outValue []byte) domain.OutTrans {

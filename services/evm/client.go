@@ -127,6 +127,8 @@ func (e *EVMClient) getContractAbiUrl(addr string) string {
 		return constants.ETH_ABI + e.GetKey() + "&address=" + addr
 	case constants.CHAIN_BSC:
 		return constants.BSC_ENDPOINTS + constants.BSC_ABI + e.GetKey() + "&address=" + addr
+	case constants.CHAIN_ARB:
+		return constants.ARB_ENDPOINTS + constants.ARB_ABI + e.GetKey() + "&address=" + addr
 	default:
 		return ""
 	}
